@@ -7,6 +7,7 @@ on:
       - "backend/**"
       - "frontend/**"
       - "docker-compose.prod.yml"
+      - ".github/workflows/build.yml"
 
 env:
   REGISTRY: ghcr.io
