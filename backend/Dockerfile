@@ -7,7 +7,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and compile TypeScript
+# Copy prisma schema first and generate client BEFORE tsc
+# (tsc needs @prisma/client types to exist)
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Copy the rest of source and compile TypeScript
 COPY . .
 RUN npm run build
 
@@ -22,12 +27,10 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy compiled output + prisma schema (needed for Prisma client)
+# Copy compiled output + prisma schema + generated client from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-
-# Generate Prisma client in the production image
-RUN npx prisma generate
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Persistent storage for local file uploads
 VOLUME ["/app/storage"]
