@@ -19,6 +19,7 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             cd /var/www/forms
-            git pull origin main
-            docker-compose build --no-cache backend worker frontend
-            docker-compose up -d --remove-orphans
+            git fetch origin
+            git reset --hard origin/main
+            docker compose build backend worker frontend
+            docker compose up -d --remove-orphans
