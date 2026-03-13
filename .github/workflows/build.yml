@@ -146,9 +146,6 @@ jobs:
               --no-build \
               --remove-orphans
 
-            # ── Run DB migrations (idempotent) ────────────────────────────────
-            docker compose -f docker-compose.prod.yml exec -T backend \
-              npx prisma migrate deploy
 
             # ── Prune dangling images to free disk space ──────────────────────
             docker image prune -f
