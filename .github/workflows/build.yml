@@ -119,7 +119,6 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
-    environment: production               # optional: adds manual approval gate
 
     steps:
       - name: Deploy via SSH
@@ -132,7 +131,7 @@ jobs:
           script: |
             set -e
 
-            cd /root/var/www/forms
+            cd /var/www/forms
 
             # ── Pull latest docker-compose file ──────────────────────────────
             git pull origin main
