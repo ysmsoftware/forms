@@ -1,0 +1,57 @@
+export const queryKeys = {
+    // Events
+    events: {
+        all: ["events"] as const,
+        list: () => [...queryKeys.events.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.events.all, "detail", id] as const,
+    },
+    // Analytics
+    analytics: {
+        all: ["analytics"] as const,
+        global: () => [...queryKeys.analytics.all, "global"] as const,
+        byEvent: (id: string) => [...queryKeys.analytics.all, "event", id] as const,
+        daily: (id: string, days: number) =>
+            [...queryKeys.analytics.all, "daily", id, days] as const,
+        globalDaily: (days: number) =>
+            [...queryKeys.analytics.all, "globalDaily", days] as const,
+    },
+    // Contacts
+    contacts: {
+        all: ["contacts"] as const,
+        list: (params: { search?: string; lastId?: string }) =>
+            [...queryKeys.contacts.all, "list", params] as const,
+    },
+    // Tags
+    tags: {
+        all: ["tags"] as const,
+        list: () => [...queryKeys.tags.all, "list"] as const,
+    },
+    // User
+    user: {
+        me: ["user", "me"] as const,
+    },
+
+    messages: {
+        all: ["messages"] as const,
+        list: (params?: { contactId?: string; eventId?: string; email?: string; phone?: string }) =>
+            [...queryKeys.messages.all, "list", params ?? {}] as const,
+    },
+    // Submissions
+    submissions: {
+        all: ["submissions"] as const,
+        byEvent: (eventId: string) => [...queryKeys.submissions.all, "byEvent", eventId] as const,
+        detail: (id: string) => [...queryKeys.submissions.all, "detail", id] as const,
+    },
+    // Files
+    files: {
+        all: ["files"] as const,
+        byEvent: (eventId: string) => [...queryKeys.files.all, "event", eventId] as const,
+    },
+    // Certificates
+    certificates: {
+        all: ["certificates"] as const,
+        byEvent: (eventId: string) => ["certificates", "event", eventId] as const,
+        verify: (certificateId: string) => ["certificates", "verify", certificateId] as const,
+    },
+
+} as const

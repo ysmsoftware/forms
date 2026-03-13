@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Event" ALTER COLUMN "templateType" SET DEFAULT 'COMPLETION';

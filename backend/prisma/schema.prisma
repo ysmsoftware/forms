@@ -1,0 +1,487 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"    
+}
+
+// ENUMS
+enum Role {
+  ADMIN
+  USER
+}
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum SubmissionStatus {
+  VISITED
+  STARTED
+  SUBMITTED
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum MessageType {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum MessageStatus {
+    QUEUED
+    PROCESSING
+    SENT
+    FAILED
+}
+
+enum FormFieldType {
+  TEXT
+  NUMBER
+  EMAIL
+  DATE
+  TEXTAREA
+  RANGE
+  CHECKBOX
+  RADIO
+  FILE
+  SELECT
+}
+
+enum CertificateStatus {
+    QUEUED
+    PROCESSING
+    GENERATED
+    UPLOADED
+    FAILED
+}
+
+enum CertificateTemplateType {
+    ACHIEVEMENT  
+    APPOINTMENT
+    COMPLETION
+    INTERNSHIP
+    WORKSHOP
+}
+
+enum ContactEventSource {
+    FORM_SUBMISSION
+    PAYMENT
+    MANUAL
+    OTHER
+}
+
+
+// USER & AUTH
+
+model User {
+  id            String      @id @default(uuid())
+  name          String
+  email         String      @unique
+  passwordHash  String
+  role          Role        @default(USER)
+  isDeleted     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  events Event[]
+}
+
+// EVENT
+
+model Event {
+  id              String        @id @default(uuid())
+  userId          String
+  title           String
+  slug            String        @unique
+  description     String?       @db.Text
+  status          EventStatus   @default(DRAFT)
+  paymentEnabled  Boolean       @default(false)
+  paymentConfig   PaymentConfig?
+  isDeleted       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  templateType    CertificateTemplateType   @default(COMPLETION)
+  date            DateTime?
+  link            String?
+  bannerUrl       String?
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  form            Form?
+  visitSessions   VisitSession[]
+  contactEvents   ContactEvent[]
+  formSubmissions FormSubmission[]
+  payments        Payment[]
+  certificates    Certificate[]
+  messageLogs     MessageLog[]
+  analytics       EventAnalytics?
+  daliyAnalytics  EventAnalyticsDaily[]
+  fileAssets      FileAsset[]
+
+
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+
+}
+
+
+model PaymentConfig {
+  id            String      @id @default(uuid())
+  eventId       String      @unique
+  amount        Int         // Store in smallest currency unit (paise for INR)
+  currency      String      @default("INR")
+  description   String?     @db.Text
+
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// FORM (DYNAMIC)
+model Form {
+  id                String      @id @default(uuid())
+  eventId           String      @unique
+  isMultiStep       Boolean     @default(false)
+  settings          Json?
+  publishedAt       DateTime?
+  isDeleted         Boolean     @default(false)
+
+  event             Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  steps             FormStep[]
+  fields            FormField[]
+  formSubmissions   FormSubmission[]
+
+
+}
+
+model FormStep {
+  id            String  @id @default(uuid())
+  formId        String
+  stepNumber    Int
+  title         String
+  description   String? @db.Text
+  form          Form        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  fields        FormField[]
+
+  @@unique([formId, stepNumber])
+  @@index([formId])
+
+}
+
+model FormField {
+  id            String        @id @default(uuid())
+  formId        String
+  stepId        String?
+  key           String
+  type          FormFieldType
+  label         String
+  required      Boolean       @default(false)
+  order         Int
+  options       Json?
+  validation    Json?
+
+  form              Form?               @relation(fields: [formId], references: [id], onDelete: Cascade)
+  step              FormStep?          @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  submissionAnswers SubmissionAnswer[]
+
+  @@unique([formId, key])
+  @@index([formId])
+  @@index([stepId])
+
+}
+
+// VISITOR TRACKING
+
+model Visitor {
+  id                String   @id @default(uuid())
+  uuid              String   @unique
+  ipAddress         String?
+  userAgent         String?  @db.Text
+  firstSeenAt       DateTime @default(now())
+  lastSeenAt        DateTime @updatedAt
+
+  visitSessions     VisitSession[]
+  formSubmissions   FormSubmission[]
+
+  @@index([uuid])
+
+}
+
+model VisitSession {
+  id            String           @id @default(uuid())
+  visitorId     String
+  eventId       String
+  status        SubmissionStatus @default(VISITED)
+  startedAt     DateTime         @default(now())
+  submittedAt   DateTime?
+  visitor       Visitor @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([visitorId, eventId])
+  
+  @@index([visitorId])
+  @@index([eventId])
+  @@index([status])
+
+}
+
+// CONTACT (DEDUPED GLOBAL USER)
+model Contact {
+  id            String      @id @default(uuid())
+  name          String?
+  email         String?     @unique
+  phone         String?     @unique
+  createdAt     DateTime    @default(now())
+  isDeleted     Boolean     @default(false)
+  updatedAt     DateTime    @updatedAt
+
+  contactEvents   ContactEvent[]
+  formSubmissions FormSubmission[]
+  payments        Payment[]
+  certificates    Certificate[]
+  messageLogs     MessageLog[]
+  tags            ContactTag[]
+  fileAssets       FileAsset[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([createdAt])
+
+}
+
+model ContactEvent {
+  id        String   @id @default(uuid())
+  contactId String
+  eventId   String
+  source    ContactEventSource?
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, eventId])
+  @@index([contactId])
+  @@index([eventId])
+
+}
+
+// FORM SUBMISSIONS
+model FormSubmission {
+  id          String           @id @default(uuid())
+  formId      String
+  eventId     String
+  visitorId   String
+  contactId   String?
+  status      SubmissionStatus @default(SUBMITTED)
+  isDeleted   Boolean          @default(false)
+  submittedAt DateTime         @default(now())
+
+  form    Form               @relation(fields: [formId], references: [id], onDelete: Cascade)
+  event   Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  visitor Visitor            @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  contact Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  answers SubmissionAnswer[]
+  payment Payment?
+  certificate Certificate?
+
+  @@index([formId])
+  @@index([eventId])
+  @@index([visitorId])
+  @@index([contactId])
+  @@index([status])
+
+}
+
+model SubmissionAnswer {
+  id           String    @id @default(uuid())
+  submissionId String
+  fieldId      String
+  fieldKey     String
+  valueText    String?   @db.Text
+  valueNumber  Float?
+  valueBoolean Boolean?
+  valueDate    DateTime?
+  valueJson    Json?
+  fileUrl      String?
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field      FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([fieldId])
+
+}
+
+// TAGGING & FOLLOW-UPS
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  contacts ContactTag[]
+}
+
+model ContactTag {
+  contactId String
+  tagId     String
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@index([contactId])
+  @@index([tagId])
+
+}
+
+// ANALYTICS (REDIS → DB)
+model EventAnalytics {
+  id              String   @id @default(uuid())
+  eventId         String   @unique
+  totalVisits     Int      @default(0)
+  totalStarted    Int      @default(0)
+  totalSubmitted  Int      @default(0)
+  conversionRate  Float    @default(0)
+  lastUpdated     DateTime @default(now()) 
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@index([eventId])
+}
+
+model EventAnalyticsDaily {
+    id                  String      @id @default(uuid())
+    eventId             String
+    date                DateTime
+    visits              Int         @default(0)
+    started             Int         @default(0)
+    submitted           Int         @default(0)
+    conversionRate      Float       @default(0)
+    createdAt           DateTime    @default(now())
+
+    event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+    @@unique([eventId, date])
+    @@index([eventId, date])
+}
+
+
+// PAYMENTS
+
+model Payment {
+  id                String        @id @default(uuid())
+  eventId           String
+  submissionId      String        @unique
+  contactId         String?
+  amount            Int
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  razorpayStatus    String?
+  paidAt            DateTime?
+  metadata          Json?
+  attempts          Int           @default(1)
+  failureReason     String?
+  webhookConfirmed  Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  isDeleted         Boolean       @default(false)
+
+  event      Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  contact    Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([eventId,status])
+  @@index([submissionId,status])
+  @@index([eventId, createdAt])
+  @@index([contactId])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+
+}
+
+// CERTIFICATES
+
+model Certificate {
+  id             String             @id @default(uuid())
+  submissionId   String             @unique
+  contactId      String?
+  eventId        String
+  fileAssetId    String?
+  status         CertificateStatus   @default(QUEUED)
+  templateType   CertificateTemplateType   @default(COMPLETION)
+  issuedAt       DateTime?           
+  isDeleted      Boolean            @default(false)
+
+  submission FormSubmission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  contact    Contact?                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  event      Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fileAsset  FileAsset? @relation(fields: [fileAssetId], references: [id])
+
+  @@index([contactId])
+  @@index([eventId])
+
+}
+
+// MESSAGING / CAMPAIGNS
+model MessageLog {
+  id                String          @id @default(uuid())
+  contactId         String
+  eventId           String?
+  type              MessageType
+  template          String
+  params            Json?
+  status            MessageStatus   @default(QUEUED)
+  sentAt            DateTime?
+  providerResponse  Json?
+  errorMessage      String?
+  attemptCount          Int             @default(1)
+  isDeleted         Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+
+  contact           Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  event             Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([contactId])
+  @@index([eventId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+
+// File Assets (for form uploads, etc.)
+model FileAsset {
+    id              String @id @default(uuid())
+    url             String
+    storageKey      String
+    mimeType        String
+    name            String
+    size            Int
+    context         String
+    fieldKey        String?
+    contactId       String?
+    eventId         String?
+    visitorId       String?
+    expiresAt       DateTime?
+    createdAt       DateTime  @default(now())
+
+    contact       Contact? @relation(fields: [contactId], references: [id])
+    event         Event?  @relation(fields: [eventId], references: [id])
+
+    certificate Certificate[]
+
+    @@index([url])
+    @@index([contactId])
+    @@index([eventId])
+    @@index([expiresAt])
+}

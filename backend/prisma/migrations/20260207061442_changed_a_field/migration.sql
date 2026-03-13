@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "EventAnalytics" ALTER COLUMN "lastUpdated" SET DEFAULT CURRENT_TIMESTAMP;
