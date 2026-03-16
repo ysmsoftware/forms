@@ -3,17 +3,21 @@ import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+    const token = request.cookies.get("accessToken")?.value
 
-    // Only protect dashboard routes
+    // Root "/" → redirect to dashboard (authenticated) or login (unauthenticated)
+    if (pathname === "/") {
+        if (token) {
+            return NextResponse.redirect(new URL("/dashboard", request.url))
+        } else {
+            return NextResponse.redirect(new URL("/login", request.url))
+        }
+    }
+
+    // Protect all dashboard routes
     if (pathname.startsWith("/dashboard")) {
-        // Check for access token in cookies OR Authorization header
-        // Note: localStorage is not accessible in middleware (edge runtime)
-        // So we check a cookie that mirrors the token
-        const token = request.cookies.get("accessToken")?.value
-
         if (!token) {
             const loginUrl = new URL("/login", request.url)
-            // Pass the original URL so we can redirect back after login
             loginUrl.searchParams.set("callbackUrl", pathname)
             return NextResponse.redirect(loginUrl)
         }
@@ -22,7 +26,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
 }
 
-// Only run middleware on dashboard routes
+// Only run middleware on dashboard routes and the root path
 export const config = {
-    matcher: ["/dashboard/:path*"],
+    matcher: ["/", "/dashboard/:path*"],
 }

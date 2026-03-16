@@ -32,6 +32,9 @@ export function useAuth(callbackUrl?: string) {
         async (email: string, password: string): Promise<void> => {
             const res = await login({ email, password });
             localStorage.setItem("accessToken", res.accessToken);
+            // Set cookie for middleware
+            document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Lax`;
+
             if (res.refreshToken) {
                 localStorage.setItem("refreshToken", res.refreshToken);
             }
@@ -50,6 +53,9 @@ export function useAuth(callbackUrl?: string) {
         }
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        // Remove cookie for middleware
+        document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+
         setUser(null);
         router.push("/");
     }, [router]);
@@ -60,6 +66,9 @@ export function useAuth(callbackUrl?: string) {
             // signup returns tokens directly — store them before login redirect
             if (res?.accessToken) {
                 localStorage.setItem("accessToken", res.accessToken);
+                // Set cookie for middleware
+                document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Lax`;
+
                 if (res?.refreshToken) localStorage.setItem("refreshToken", res.refreshToken);
                 setUser(res.user);
                 window.location.href = "/dashboard";
