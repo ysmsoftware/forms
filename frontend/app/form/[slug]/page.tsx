@@ -35,6 +35,7 @@ export default function PublicForm() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "completed" | "failed">("pending")
     const [currentStep, setCurrentStep] = useState(0)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const { toast } = useToast()
 
     // Refs to guarantee visit and start only fire ONCE
@@ -106,6 +107,14 @@ export default function PublicForm() {
             startSubmission(slug, visitorUuid).catch(() => { })
         }
         setFormValues((prev) => ({ ...prev, [fieldKey]: value }))
+        // Clear error for this field when user starts editing
+        if (fieldErrors[fieldKey]) {
+            setFieldErrors(prev => {
+                const next = { ...prev }
+                delete next[fieldKey]
+                return next
+            })
+        }
     }
 
     const handlePayment = async () => {
@@ -121,6 +130,73 @@ export default function PublicForm() {
         }, 2000)
     }
 
+    function validateFields(fieldsToValidate: FormField[]): Record<string, string> {
+        const errors: Record<string, string> = {}
+
+        for (const field of fieldsToValidate) {
+            const rawValue = formValues[field.key]
+            const v = field.validation as any
+
+            // Required check
+            if (field.required) {
+                const isEmpty = rawValue === undefined || rawValue === null || rawValue === "" ||
+                    (Array.isArray(rawValue) && rawValue.length === 0)
+                if (isEmpty) {
+                    errors[field.key] = `${field.label} is required.`
+                    continue
+                }
+            }
+
+            // Skip further validation if field is empty and not required
+            if (rawValue === undefined || rawValue === null || rawValue === "") continue
+
+            // TEXT / TEXTAREA / EMAIL
+            if (["TEXT", "TEXTAREA", "EMAIL"].includes(field.type)) {
+                const str = String(rawValue)
+                if (v?.minLength !== undefined && str.length < v.minLength) {
+                    errors[field.key] = `Must be at least ${v.minLength} characters.`
+                    continue
+                }
+                if (v?.maxLength !== undefined && str.length > v.maxLength) {
+                    errors[field.key] = `Must be no more than ${v.maxLength} characters.`
+                    continue
+                }
+                if (v?.pattern) {
+                    try {
+                        if (!new RegExp(v.pattern).test(str)) {
+                            errors[field.key] = `Invalid format.`
+                            continue
+                        }
+                    } catch { /* invalid regex — skip */ }
+                }
+                // EMAIL format check (in addition to pattern)
+                if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)) {
+                    errors[field.key] = `Please enter a valid email address.`
+                    continue
+                }
+            }
+
+            // NUMBER / RANGE
+            if (["NUMBER", "RANGE"].includes(field.type)) {
+                const num = Number(rawValue)
+                if (isNaN(num)) {
+                    errors[field.key] = `Must be a valid number.`
+                    continue
+                }
+                if (v?.min !== undefined && num < v.min) {
+                    errors[field.key] = `Must be at least ${v.min}.`
+                    continue
+                }
+                if (v?.max !== undefined && num > v.max) {
+                    errors[field.key] = `Must be no more than ${v.max}.`
+                    continue
+                }
+            }
+        }
+
+        return errors
+    }
+
     const handleNextStep = () => {
         // Re-derive fields fresh at call time — avoids stale closure
         const freshSteps: any[] = form?.form?.steps ?? []
@@ -128,13 +204,12 @@ export default function PublicForm() {
             ? (freshSteps[currentStep]?.fields ?? [])
             : (form?.form?.fields ?? form?.fields ?? [])
 
-        const requiredFields = freshCurrentFields.filter((field: FormField) => field.required)
-        const missingFields = requiredFields.filter((field: FormField) => !formValues[field.key])
+        const errors = validateFields(freshCurrentFields)
+        setFieldErrors(errors)
 
-        if (missingFields.length > 0) {
+        if (Object.keys(errors).length > 0) {
             toast({
-                title: "Missing Required Fields",
-                description: "Please fill in all required fields before proceeding.",
+                title: "Please fix the errors before continuing.",
                 variant: "destructive",
             })
             return
@@ -161,17 +236,12 @@ export default function PublicForm() {
             ? (freshSteps[currentStep]?.fields ?? [])
             : (form?.form?.fields ?? form?.fields ?? [])
 
-        // Validate current step
-        const requiredFields = freshFields.filter((field: FormField) => field.required)
-        const missingFields = requiredFields.filter((field: FormField) => !formValues[field.key])
+        const errors = validateFields(freshFields)
+        setFieldErrors(errors)
 
-        if (missingFields.length > 0) {
-            const firstMissing = missingFields[0]
+        if (Object.keys(errors).length > 0) {
             toast({
-                title: "Missing Required Fields",
-                description: firstMissing.type === "FILE"
-                    ? `Please upload a file for: ${firstMissing.label}`
-                    : "Please fill in all required fields before submitting.",
+                title: "Please fix the errors before submitting.",
                 variant: "destructive",
             })
             return
@@ -277,13 +347,18 @@ export default function PublicForm() {
                 )
 
             case "SELECT":
+                // Extract choices array — backend sends { choices: [...] } or legacy flat array
+                const selectChoices: string[] = Array.isArray(field.options)
+                    ? field.options
+                    : (field.options as any)?.choices ?? []
+
                 return (
                     <Select value={value} onValueChange={(val) => handleFieldChange(field.key, val)} required={field.required}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select an option" />
                         </SelectTrigger>
                         <SelectContent>
-                            {field.options?.map((option: string) => (
+                            {selectChoices.map((option: string) => (
                                 <SelectItem key={option} value={option}>
                                     {option}
                                 </SelectItem>
@@ -293,9 +368,14 @@ export default function PublicForm() {
                 )
 
             case "RADIO":
+                // Extract choices array — backend sends { choices: [...] } or legacy flat array
+                const radioChoices: string[] = Array.isArray(field.options)
+                    ? field.options
+                    : (field.options as any)?.choices ?? []
+
                 return (
                     <RadioGroup value={value} onValueChange={(val) => handleFieldChange(field.key, val)} required={field.required}>
-                        {field.options?.map((option: string) => (
+                        {radioChoices.map((option: string) => (
                             <div key={option} className="flex items-center space-x-2">
                                 <RadioGroupItem value={option} id={`${field.id}-${option}`} />
                                 <Label htmlFor={`${field.id}-${option}`}>{option}</Label>
@@ -306,9 +386,14 @@ export default function PublicForm() {
 
             case "CHECKBOX":
                 const selectedValues = value || []
+                // Extract choices array — backend sends { choices: [...] } or legacy flat array
+                const checkboxChoices: string[] = Array.isArray(field.options)
+                    ? field.options
+                    : (field.options as any)?.choices ?? []
+
                 return (
                     <div className="space-y-2">
-                        {field.options?.map((option: string) => (
+                        {checkboxChoices.map((option: string) => (
                             <div key={option} className="flex items-center space-x-2">
                                 <Checkbox
                                     id={`${field.id}-${option}`}
@@ -506,6 +591,12 @@ export default function PublicForm() {
                                                     {field.required && <span className="text-destructive ml-1">*</span>}
                                                 </Label>
                                                 {renderField(field)}
+                                                {fieldErrors[field.key] && (
+                                                    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                                                        <AlertCircle className="h-3 w-3 shrink-0" />
+                                                        {fieldErrors[field.key]}
+                                                    </p>
+                                                )}
                                             </div>
                                         ))}
 

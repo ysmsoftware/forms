@@ -42,6 +42,7 @@ import {
     Globe,
     Lock,
     XCircle,
+    AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -53,12 +54,19 @@ import type { Event, Form, FormFieldInput } from "@/lib/types/api"
 
 interface LocalField {
     id: string
-    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file"
+    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file" | "range"
     label: string
     placeholder?: string
     required: boolean
-    options?: string[]
+    options?: string[]          // internal UI representation — always string[]
     backendKey?: string
+    validation?: {
+        minLength?: number
+        maxLength?: number
+        min?: number
+        max?: number
+        pattern?: string
+    }
 }
 
 interface LocalStep {
@@ -73,6 +81,7 @@ const fieldTypes = [
     { type: "text", label: "Text Input", icon: Type },
     { type: "textarea", label: "Textarea", icon: FileText },
     { type: "number", label: "Number", icon: Hash },
+    { type: "range", label: "Range Slider", icon: Hash },
     { type: "email", label: "Email", icon: Mail },
     { type: "radio", label: "Radio Buttons", icon: Circle },
     { type: "checkbox", label: "Checkboxes", icon: CheckSquare },
@@ -146,7 +155,14 @@ export default function EditEventPage() {
                                 label: f.label,
                                 placeholder: (f as any).placeholder ?? "", // placeholder is not strictly in FormField API types yet
                                 required: f.required ?? false,
-                                options: f.options ?? undefined,
+                                options: f.options
+                                    ? (Array.isArray(f.options)
+                                        ? f.options                          // legacy flat array
+                                        : (f.options as any).choices ?? [])  // backend shape { choices: [...] }
+                                    : undefined,
+                                validation: (f as any).validation && Object.keys((f as any).validation).length > 0
+                                    ? (f as any).validation
+                                    : undefined,
                                 backendKey: f.key,
                             }))
                         })))
@@ -158,7 +174,14 @@ export default function EditEventPage() {
                             label: f.label,
                             placeholder: (f as any).placeholder ?? "", // placeholder is not strictly in FormField API types yet
                             required: f.required ?? false,
-                            options: f.options ?? undefined,
+                            options: f.options
+                                ? (Array.isArray(f.options)
+                                    ? f.options                          // legacy flat array
+                                    : (f.options as any).choices ?? [])  // backend shape { choices: [...] }
+                                : undefined,
+                            validation: (f as any).validation && Object.keys((f as any).validation).length > 0
+                                ? (f as any).validation
+                                : undefined,
                             backendKey: f.key,
                         }))
                         setFormFields(mapped)
@@ -308,7 +331,14 @@ export default function EditEventPage() {
                     label: f.label,
                     required: f.required,
                     order: index,
-                    options: f.options,
+                    // Wrap choices array into backend-expected shape for choice fields
+                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
+                        ? { choices: f.options }
+                        : {},
+                    // Only send validation if at least one key has a value
+                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
+                        ? f.validation
+                        : {},
                 }))
             }
         }
@@ -324,7 +354,14 @@ export default function EditEventPage() {
                     label: f.label,
                     required: f.required,
                     order: index,
-                    options: f.options,
+                    // Wrap choices array into backend-expected shape for choice fields
+                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
+                        ? { choices: f.options }
+                        : {},
+                    // Only send validation if at least one key has a value
+                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
+                        ? f.validation
+                        : {},
                 }))
             }))
         }
@@ -360,6 +397,12 @@ export default function EditEventPage() {
     }
 
     const handleSaveForm = async () => {
+        // Guard: form fields cannot be edited on an Active event
+        if (event?.status === "ACTIVE") {
+            toast.error("Form fields cannot be edited while the event is Active. Close the event first to make changes.")
+            return
+        }
+
         if (!isMultiStep && formFields.length === 0) { toast.error("Add at least one field."); return }
         if (isMultiStep) {
             if (steps.length === 0) { toast.error("Add at least one step."); return }
@@ -384,6 +427,11 @@ export default function EditEventPage() {
     }
 
     const handlePublish = async () => {
+        if (event?.status === "ACTIVE") {
+            toast.error("This event is already Active and published.")
+            return
+        }
+
         if (!isMultiStep && formFields.length === 0) { toast.error("Add at least one form field before publishing."); return }
         if (isMultiStep) {
             if (steps.length === 0) { toast.error("Add at least one step before publishing."); return }
@@ -568,7 +616,11 @@ export default function EditEventPage() {
                         <div className="space-y-1">
                             <CardTitle>Form Fields</CardTitle>
                             <CardDescription>
-                                {event?.status === "CLOSED" ? "Event is closed. Fields are read-only." : "Add, reorder or remove fields. Save when done."}
+                                {event?.status === "CLOSED"
+                                    ? "Event is closed. Fields are read-only."
+                                    : event?.status === "ACTIVE"
+                                        ? "Event is live. Form fields are locked to prevent mismatched submissions."
+                                        : "Add, reorder or remove fields. Save when done."}
                             </CardDescription>
                         </div>
                         {event?.status !== "CLOSED" && (
@@ -583,6 +635,17 @@ export default function EditEventPage() {
                             </div>
                         )}
                     </CardHeader>
+
+                    {event?.status === "ACTIVE" && (
+                        <div className="mx-6 mb-2 flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30 px-4 py-3">
+                            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                            <div className="text-sm text-yellow-800 dark:text-yellow-300">
+                                <span className="font-semibold">Form locked.</span> Fields cannot be modified while the event is Active.
+                                To edit the form, close the event first using the "Close Event" button above.
+                            </div>
+                        </div>
+                    )}
+
                     <CardContent className="space-y-6">
                         {event?.status !== "CLOSED" && (
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -698,7 +761,18 @@ export default function EditEventPage() {
                                                                         {fieldTypes.find(f => f.type === field.type) && (() => { const Icon = fieldTypes.find(f => f.type === field.type)!.icon; return <Icon className="h-4 w-4" /> })()}
                                                                         <div className="flex-1 min-w-0">
                                                                             <div className="font-medium text-sm truncate">{field.label}</div>
-                                                                            <div className="text-xs text-muted-foreground">{field.type}{field.required ? " · Required" : ""}</div>
+                                                                            <div className="text-xs text-muted-foreground">
+                                                                                {field.type}
+                                                                                {field.required ? " · Required" : ""}
+                                                                                {field.validation?.minLength !== undefined && ` · min ${field.validation.minLength}`}
+                                                                                {field.validation?.maxLength !== undefined && ` · max ${field.validation.maxLength}`}
+                                                                                {field.validation?.min !== undefined && ` · ≥${field.validation.min}`}
+                                                                                {field.validation?.max !== undefined && ` · ≤${field.validation.max}`}
+                                                                                {field.validation?.pattern && ` · pattern`}
+                                                                                {["radio", "checkbox", "select"].includes(field.type) && field.options?.length
+                                                                                    ? ` · ${field.options.length} option${field.options.length !== 1 ? "s" : ""}`
+                                                                                    : ""}
+                                                                            </div>
                                                                         </div>
                                                                         {event?.status !== "CLOSED" && (
                                                                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeField(field.id) }}>
@@ -738,6 +812,108 @@ export default function EditEventPage() {
                                                 <Checkbox id="req" checked={selectedField.required} onCheckedChange={(c) => updateField(selectedField.id, { required: c as boolean })} disabled={event?.status === "CLOSED"} />
                                                 <Label htmlFor="req">Required field</Label>
                                             </div>
+
+                                            {/* ── Validation section ────────────────────────────────── */}
+                                            {["text", "textarea", "email"].includes(selectedField.type) && (
+                                                <div className="space-y-3 pt-2 border-t">
+                                                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                        Validation
+                                                    </Label>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">Min Length</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                placeholder="e.g. 3"
+                                                                value={selectedField.validation?.minLength ?? ""}
+                                                                onChange={(e) => updateField(selectedField.id, {
+                                                                    validation: {
+                                                                        ...selectedField.validation,
+                                                                        minLength: e.target.value ? Number(e.target.value) : undefined
+                                                                    }
+                                                                })}
+                                                                disabled={event?.status === "CLOSED"}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">Max Length</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                placeholder="e.g. 100"
+                                                                value={selectedField.validation?.maxLength ?? ""}
+                                                                onChange={(e) => updateField(selectedField.id, {
+                                                                    validation: {
+                                                                        ...selectedField.validation,
+                                                                        maxLength: e.target.value ? Number(e.target.value) : undefined
+                                                                    }
+                                                                })}
+                                                                disabled={event?.status === "CLOSED"}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs">Pattern (regex)</Label>
+                                                        <Input
+                                                            placeholder="e.g. ^[A-Za-z]+$"
+                                                            value={selectedField.validation?.pattern ?? ""}
+                                                            onChange={(e) => updateField(selectedField.id, {
+                                                                validation: {
+                                                                    ...selectedField.validation,
+                                                                    pattern: e.target.value || undefined
+                                                                }
+                                                            })}
+                                                            disabled={event?.status === "CLOSED"}
+                                                            className="h-8 text-sm font-mono"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {["number", "range"].includes(selectedField.type) && (
+                                                <div className="space-y-3 pt-2 border-t">
+                                                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                        Validation
+                                                    </Label>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">Min Value</Label>
+                                                            <Input
+                                                                type="number"
+                                                                placeholder="e.g. 0"
+                                                                value={selectedField.validation?.min ?? ""}
+                                                                onChange={(e) => updateField(selectedField.id, {
+                                                                    validation: {
+                                                                        ...selectedField.validation,
+                                                                        min: e.target.value ? Number(e.target.value) : undefined
+                                                                    }
+                                                                })}
+                                                                disabled={event?.status === "CLOSED"}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">Max Value</Label>
+                                                            <Input
+                                                                type="number"
+                                                                placeholder="e.g. 100"
+                                                                value={selectedField.validation?.max ?? ""}
+                                                                onChange={(e) => updateField(selectedField.id, {
+                                                                    validation: {
+                                                                        ...selectedField.validation,
+                                                                        max: e.target.value ? Number(e.target.value) : undefined
+                                                                    }
+                                                                })}
+                                                                disabled={event?.status === "CLOSED"}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {["radio", "checkbox", "select"].includes(selectedField.type) && (
                                                 <div className="space-y-2">
                                                     <Label>Options</Label>

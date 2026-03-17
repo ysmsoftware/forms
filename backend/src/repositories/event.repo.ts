@@ -45,22 +45,23 @@ export class EventRepository implements IEventRepository {
 
     async findBySlug(slug: string): Promise<EventWithConfig | null> {
         return prisma.event.findUnique({
-            where: { slug },
+            where: { slug, isDeleted: false },
             include: { paymentConfig: true }
         }) as Promise<EventWithConfig | null>;
     }
 
     async findById(id: string): Promise<EventWithConfig | null> {
         return prisma.event.findUnique({
-            where: { id },
+            where: { id, isDeleted: false },
             include: { paymentConfig: true }
         }) as Promise<EventWithConfig | null>;
     }
 
     async findByUser(userId: string): Promise<EventWithConfig[]> {
         return prisma.event.findMany({
-            where: { userId },
-            include: { paymentConfig: true }
+            where: { userId, isDeleted: false },
+            include: { paymentConfig: true },
+            orderBy: { createdAt: "desc" }
         }) as Promise<EventWithConfig[]>;
     }
 

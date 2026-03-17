@@ -42,12 +42,19 @@ import { useToast } from "@/hooks/use-toast"
 
 interface LocalField {
     id: string
-    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file"
+    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file" | "range"
     label: string
     placeholder?: string
     required: boolean
     options?: string[]
     backendKey?: string
+    validation?: {
+        minLength?: number
+        maxLength?: number
+        min?: number
+        max?: number
+        pattern?: string
+    }
 }
 
 interface LocalStep {
@@ -62,6 +69,7 @@ const fieldTypes = [
     { type: "text", label: "Text Input", icon: Type },
     { type: "textarea", label: "Textarea", icon: FileText },
     { type: "number", label: "Number", icon: Hash },
+    { type: "range", label: "Range Slider", icon: Hash },
     { type: "email", label: "Email", icon: Mail },
     { type: "radio", label: "Radio Buttons", icon: Circle },
     { type: "checkbox", label: "Checkboxes", icon: CheckSquare },
@@ -241,7 +249,12 @@ export default function CreateEvent() {
                     label: f.label,
                     required: f.required,
                     order: index,
-                    options: f.options,
+                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
+                        ? { choices: f.options }
+                        : {},
+                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
+                        ? f.validation
+                        : {},
                 }))
             }
         }
@@ -257,7 +270,12 @@ export default function CreateEvent() {
                     label: f.label,
                     required: f.required,
                     order: index,
-                    options: f.options,
+                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
+                        ? { choices: f.options }
+                        : {},
+                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
+                        ? f.validation
+                        : {},
                 }))
             }))
         }
@@ -790,6 +808,104 @@ export default function CreateEvent() {
                                     />
                                     <Label htmlFor="field-required">Required field</Label>
                                 </div>
+
+                                {/* Validation — text/textarea/email */}
+                                {["text", "textarea", "email"].includes(selectedField.type) && (
+                                    <div className="space-y-3 pt-2 border-t">
+                                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Validation
+                                        </Label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Min Length</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    placeholder="e.g. 3"
+                                                    value={selectedField.validation?.minLength ?? ""}
+                                                    onChange={(e) => updateField(selectedField.id, {
+                                                        validation: {
+                                                            ...selectedField.validation,
+                                                            minLength: e.target.value ? Number(e.target.value) : undefined
+                                                        }
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Max Length</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    placeholder="e.g. 100"
+                                                    value={selectedField.validation?.maxLength ?? ""}
+                                                    onChange={(e) => updateField(selectedField.id, {
+                                                        validation: {
+                                                            ...selectedField.validation,
+                                                            maxLength: e.target.value ? Number(e.target.value) : undefined
+                                                        }
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">Pattern (regex)</Label>
+                                            <Input
+                                                placeholder="e.g. ^[A-Za-z]+$"
+                                                value={selectedField.validation?.pattern ?? ""}
+                                                onChange={(e) => updateField(selectedField.id, {
+                                                    validation: {
+                                                        ...selectedField.validation,
+                                                        pattern: e.target.value || undefined
+                                                    }
+                                                })}
+                                                className="h-8 text-sm font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Validation — number/range */}
+                                {["number", "range"].includes(selectedField.type) && (
+                                    <div className="space-y-3 pt-2 border-t">
+                                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Validation
+                                        </Label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Min Value</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 0"
+                                                    value={selectedField.validation?.min ?? ""}
+                                                    onChange={(e) => updateField(selectedField.id, {
+                                                        validation: {
+                                                            ...selectedField.validation,
+                                                            min: e.target.value ? Number(e.target.value) : undefined
+                                                        }
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Max Value</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 100"
+                                                    value={selectedField.validation?.max ?? ""}
+                                                    onChange={(e) => updateField(selectedField.id, {
+                                                        validation: {
+                                                            ...selectedField.validation,
+                                                            max: e.target.value ? Number(e.target.value) : undefined
+                                                        }
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {["radio", "checkbox", "select"].includes(selectedField.type) && (
                                     <div className="space-y-2">
