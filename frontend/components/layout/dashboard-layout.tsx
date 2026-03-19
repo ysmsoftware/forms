@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -39,16 +39,9 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const pathname = usePathname()
-    const router = useRouter()
     const { user, logout } = useAuth()
 
-    const handleLogout = () => {
-        if (typeof window !== "undefined") {
-            localStorage.removeItem("accessToken")
-            localStorage.removeItem("refreshToken")
-        }
-        router.push("/login")
-    }
+
 
     return (
         <AuthGuard>
@@ -101,7 +94,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                                 <Button
                                     variant="ghost"
                                     className="w-full justify-start text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                                    onClick={handleLogout}
+                                    onClick={() => logout()}
                                 >
                                     <LogOut className="mr-2 h-5 w-5" />
                                     Log Out
@@ -154,7 +147,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                                 <Button
                                     variant="ghost"
                                     className="w-full justify-start text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                                    onClick={handleLogout}
+                                    onClick={() => logout()}
                                 >
                                     <LogOut className="mr-2 h-5 w-5" />
                                     Log Out

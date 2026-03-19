@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import React, { useState, useMemo, type ReactNode } from "react"
 import { Award, Download, RefreshCw, Send, CheckCircle2, Clock, Loader2, XCircle, ChevronDown, MessageSquare } from "lucide-react"
 import { IssueCertificateDialog } from "@/components/issue-certificate-dialog"
 import { SendCertificateDialog } from "@/components/send-certificate-dialog"
@@ -22,7 +22,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { useEvents } from "@/lib/query/hooks/useEvents"
 import { useSubmissionsByEvent } from "@/lib/query/hooks/useSubmissions"
 import {
@@ -37,35 +37,42 @@ import { format } from "date-fns"
 
 const STATUS_CONFIG: Record<
     CertificateStatus,
-    { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ReactNode }
+    { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
 > = {
     GENERATED: {
         label: "Generated",
         variant: "default",
-        icon: <CheckCircle2 className="h-3 w-3" />,
     },
     QUEUED: {
         label: "Queued",
         variant: "secondary",
-        icon: <Clock className="h-3 w-3" />,
     },
     PROCESSING: {
         label: "Processing",
         variant: "secondary",
-        icon: <Loader2 className="h-3 w-3 animate-spin" />,
     },
     FAILED: {
         label: "Failed",
         variant: "destructive",
-        icon: <XCircle className="h-3 w-3" />,
     },
 }
 
 function StatusBadge({ status }: { status: CertificateStatus }) {
     const cfg = STATUS_CONFIG[status]
+
+    const renderIcon = () => {
+        switch (status) {
+            case "GENERATED": return <CheckCircle2 className="h-3 w-3" />
+            case "QUEUED": return <Clock className="h-3 w-3" />
+            case "PROCESSING": return <Loader2 className="h-3 w-3 animate-spin" />
+            case "FAILED": return <XCircle className="h-3 w-3" />
+            default: return null
+        }
+    }
+
     return (
         <Badge variant={cfg.variant} className="flex items-center gap-1 w-fit">
-            {cfg.icon}
+            {renderIcon()}
             {cfg.label}
         </Badge>
     )
@@ -74,7 +81,7 @@ function StatusBadge({ status }: { status: CertificateStatus }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function CertificatesPage() {
-    const { toast } = useToast()
+
     const [selectedEventId, setSelectedEventId] = useState<string>("")
     const [issuingId, setIssuingId] = useState<string | null>(null)
 
@@ -145,17 +152,27 @@ export default function CertificatesPage() {
         return map
     }, [eligibleSubmissions])
 
+    const eligibleContacts = useMemo(() => {
+        return eligibleSubmissions
+            .filter((s) => s.contact !== null && s.contact !== undefined)
+            .map((s) => ({
+                id: s.contact!.id,
+                name: s.contact!.name || "Unnamed",
+                email: s.contact!.email,
+            }))
+    }, [eligibleSubmissions])
+
     // ── Handlers ───────────────────────────────────────────────────────────
 
     function handleIssueOne(submissionId: string) {
         setIssuingId(submissionId)
         issueSingle.mutate(submissionId, {
             onSuccess: () => {
-                toast({ description: "Certificate queued for generation." })
+                toast("Certificate queued for generation.")
                 setIssuingId(null)
             },
             onError: (err: Error) => {
-                toast({ variant: "destructive", description: err.message || "Failed to issue certificate." })
+                toast.error(err.message || "Failed to issue certificate.")
                 setIssuingId(null)
             },
         })
@@ -165,12 +182,10 @@ export default function CertificatesPage() {
         if (unissuedSubmissionIds.length === 0) return
         issueBulk.mutate(unissuedSubmissionIds, {
             onSuccess: (result) => {
-                toast({
-                    description: `${result.summary.queued} certificate(s) queued, ${result.summary.failed} failed.`,
-                })
+                toast(`${result.summary.queued} certificate(s) queued, ${result.summary.failed} failed.`)
             },
             onError: (err: Error) => {
-                toast({ variant: "destructive", description: err.message || "Bulk issue failed." })
+                toast.error(err.message || "Bulk issue failed.")
             },
         })
     }
@@ -204,6 +219,21 @@ export default function CertificatesPage() {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingCerts ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
+                    )}
+                    {selectedEventId && (
+                        <IssueCertificateDialog
+                            defaultEventId={selectedEventId}
+                            defaultEventLabel={selectedEvent?.title}
+                            eligibleContacts={eligibleContacts}
+                            submissionIdByContactId={submissionIdMap}
+                            onSuccess={() => refetchCerts()}
+                            trigger={
+                                <Button size="sm" variant="outline">
+                                    <Award className="h-4 w-4 mr-2" />
+                                    Issue Manually
+                                </Button>
+                            }
+                        />
                     )}
                     {selectedEventId && unissuedSubmissionIds.length > 0 && (
                         <Button
@@ -399,7 +429,7 @@ export default function CertificatesPage() {
                                                                             Send
                                                                         </Button>
                                                                     }
-                                                                    onSuccess={() => toast({ description: "Certificate notification queued." })}
+                                                                    onSuccess={() => toast("Certificate notification queued.")}
                                                                 />
                                                             )}
 

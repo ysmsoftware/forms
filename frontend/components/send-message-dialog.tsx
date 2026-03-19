@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { Send, RefreshCw, Check, ChevronsUpDown } from "lucide-react"
 
 export interface SendMessageDialogProps {
@@ -70,7 +70,6 @@ export function SendMessageDialog({
     trigger,
     onSuccess
 }: SendMessageDialogProps) {
-    const { toast } = useToast()
 
     const [open, setOpen] = useState(false)
     const [contactId, setContactId] = useState("")
@@ -160,11 +159,11 @@ export function SendMessageDialog({
                     template,
                     ...(Object.keys(paramOverrides).length > 0 && { params: paramOverrides }),
                 })
-                toast({ description: `Message queued for ${selectedContactLabel || "contact"}` })
+                toast.success(`Message queued for ${selectedContactLabel || "contact"}`)
                 setOpen(false)
                 onSuccess?.()
             } catch (err: any) {
-                toast({ variant: "destructive", description: err.message ?? "Something went wrong" })
+                toast.error(err.message ?? "Something went wrong")
             }
         } else {
             const results: { contactId: string; success: boolean; error?: string }[] = []
@@ -195,14 +194,14 @@ export function SendMessageDialog({
             const failCount = results.filter(r => !r.success).length
 
             if (failCount === 0) {
-                toast({ description: `${successCount} message${successCount !== 1 ? "s" : ""} sent successfully` })
+                toast.success(`${successCount} message${successCount !== 1 ? "s" : ""} sent successfully`)
                 onSuccess?.()
             } else {
                 const failedNames = results
                     .filter(r => !r.success)
                     .map(r => allContacts.find((c: any) => c.id === r.contactId)?.name ?? r.contactId)
                     .join(", ")
-                toast({ variant: "destructive", description: `${successCount} sent, ${failCount} failed: ${failedNames}` })
+                toast.error(`${successCount} sent, ${failCount} failed: ${failedNames}`)
                 if (successCount > 0) onSuccess?.()
             }
         }

@@ -12,22 +12,14 @@ import { Plus, Search, MoreHorizontal, Eye, Edit, Copy, BarChart3, TrendingUp, U
 import Link from "next/link"
 import { toast } from "sonner"
 import { useEvents } from "@/lib/query/hooks/useEvents"
-import { useAllEventAnalytics } from "@/lib/query/hooks/useAnalytics"
+import { useEventAnalyticsMap } from "@/lib/query/hooks/useEventAnalyticsMap"
+import { getStatusColor, copyFormUrl } from "@/lib/event-utils"
 
 export default function Dashboard() {
     const [searchTerm, setSearchTerm] = useState("")
 
     const { data: events = [], isLoading } = useEvents()
-    const analyticsResults = useAllEventAnalytics(events)
-
-    // Build analytics map from useQueries results
-    const analyticsMap = Object.fromEntries(
-        events.map((e, i) => [e.id, analyticsResults[i]?.data])
-    )
-    const isAnalyticsLoading = analyticsResults.some(r => r.isLoading)
-
-    const totalVisits = analyticsResults.reduce((s, r) => s + (r.data?.totalVisits ?? 0), 0)
-    const totalSubmissions = analyticsResults.reduce((s, r) => s + (r.data?.totalSubmitted ?? 0), 0)
+    const { analyticsMap, isLoading: isAnalyticsLoading, totalVisits, totalSubmissions } = useEventAnalyticsMap(events)
 
     const stats = [
         { title: "Total Events", value: events.length.toString(), icon: FileText, color: "text-blue-600" },
@@ -39,11 +31,6 @@ export default function Dashboard() {
         event.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const handleCopyUrl = (slug: string) => {
-        const url = `${window.location.origin}/form/${slug}`
-        navigator.clipboard.writeText(url)
-        toast.success("Form URL copied!")
-    }
 
     return (
         <div className="space-y-8">
@@ -136,7 +123,7 @@ export default function Dashboard() {
                                         <TableCell className="text-center">{analyticsMap[event.id]?.totalSubmitted ?? "—"}</TableCell>
                                         <TableCell className="text-center">₹0</TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant={event.status === "ACTIVE" ? "default" : "secondary"}>
+                                            <Badge className={getStatusColor(event.status)}>
                                                 {event.status.toLowerCase()}
                                             </Badge>
                                         </TableCell>
@@ -158,7 +145,7 @@ export default function Dashboard() {
                                                     <DropdownMenuItem asChild>
                                                         <Link href={`/dashboard/event/${event.id}/analytics`}><BarChart3 className="mr-2 h-4 w-4" />View Analytics</Link>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleCopyUrl(event.slug)}>
+                                                    <DropdownMenuItem onClick={async () => { await copyFormUrl(event.slug); toast.success("Form URL copied!") }}>
                                                         <Copy className="mr-2 h-4 w-4" />Copy URL
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>

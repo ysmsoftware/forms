@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query/keys"
 import { useUploadFileAdmin } from "@/lib/query/hooks/useFiles"
 import { createForm, publishForm } from "@/lib/api/forms"
-import type { FormFieldInput } from "@/lib/types/api"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,45 +38,9 @@ import {
 } from "lucide-react"
 import { FormPreviewModal } from "@/components/form-preview-modal"
 import { PublishSuccessModal } from "@/components/publish-success-modal"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
+import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/lib/hooks/useFormBuilder"
 
-interface LocalField {
-    id: string
-    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file" | "range"
-    label: string
-    placeholder?: string
-    required: boolean
-    options?: string[]
-    backendKey?: string
-    validation?: {
-        minLength?: number
-        maxLength?: number
-        min?: number
-        max?: number
-        pattern?: string
-    }
-}
-
-interface LocalStep {
-    id: string
-    stepNumber: number
-    title: string
-    description: string
-    fields: LocalField[]
-}
-
-const fieldTypes = [
-    { type: "text", label: "Text Input", icon: Type },
-    { type: "textarea", label: "Textarea", icon: FileText },
-    { type: "number", label: "Number", icon: Hash },
-    { type: "range", label: "Range Slider", icon: Hash },
-    { type: "email", label: "Email", icon: Mail },
-    { type: "radio", label: "Radio Buttons", icon: Circle },
-    { type: "checkbox", label: "Checkboxes", icon: CheckSquare },
-    { type: "select", label: "Dropdown", icon: ChevronDown },
-    { type: "date", label: "Date Picker", icon: Calendar },
-    { type: "file", label: "File Upload", icon: Upload },
-] as const
 
 export default function CreateEvent() {
     const qc = useQueryClient()
@@ -91,12 +55,29 @@ export default function CreateEvent() {
         paymentCurrency: "INR",
         paymentDescription: "",
     })
-    const [formFields, setFormFields] = useState<LocalField[]>([])
-    const [selectedField, setSelectedField] = useState<LocalField | null>(null)
-    const [isMultiStep, setIsMultiStep] = useState(false)
-    const [steps, setSteps] = useState<LocalStep[]>([])
-    const [activeStepId, setActiveStepId] = useState<string | null>(null)
-    const [editingStepId, setEditingStepId] = useState<string | null>(null)
+    const {
+        formFields,
+        selectedField,
+        setSelectedField,
+        isMultiStep,
+        steps,
+        activeStepId,
+        setActiveStepId,
+        editingStepId,
+        setEditingStepId,
+        handleToggleMultiStep,
+        addStep,
+        removeStep,
+        updateStep,
+        addField,
+        updateField,
+        removeField,
+        onDragEnd,
+        toBackendPayload,
+        activeStepIndex,
+        currentFields
+    } = useFormBuilder()
+
     const [showPreview, setShowPreview] = useState(false)
     const [showPublishSuccess, setShowPublishSuccess] = useState(false)
     const [publishedFormUrl, setPublishedFormUrl] = useState("")
@@ -107,182 +88,10 @@ export default function CreateEvent() {
     const [isUploadingBanner, setIsUploadingBanner] = useState(false)
     const router = useRouter()
 
-    const { toast } = useToast()
     const { mutateAsync: uploadAdmin } = useUploadFileAdmin()
 
-    const handleToggleMultiStep = (multi: boolean) => {
-        if (multi === isMultiStep) return
-        if (multi) {
-            setIsMultiStep(true)
-            const initialStep: LocalStep = {
-                id: `step-${Date.now()}`,
-                stepNumber: 1,
-                title: "Step 1",
-                description: "",
-                fields: [...formFields]
-            }
-            setSteps([initialStep])
-            setActiveStepId(initialStep.id)
-            setFormFields([])
-            setSelectedField(null)
-        } else {
-            setIsMultiStep(false)
-            const allFields = steps.flatMap(s => s.fields)
-            setFormFields(allFields)
-            setSteps([])
-            setActiveStepId(null)
-            setSelectedField(null)
-            toast({ title: "Single-step Mode", description: "Switched to single step. All fields merged." })
-        }
-    }
-
-    const addStep = () => {
-        const newStep: LocalStep = {
-            id: `step-${Date.now()}`,
-            stepNumber: steps.length + 1,
-            title: `Step ${steps.length + 1}`,
-            description: "",
-            fields: []
-        }
-        setSteps(prev => [...prev, newStep])
-        setActiveStepId(newStep.id)
-        setSelectedField(null)
-    }
-
-    const removeStep = (stepId: string) => {
-        setSteps(prev => {
-            const newSteps = prev.filter(s => s.id !== stepId).map((s, i) => ({ ...s, stepNumber: i + 1 }))
-            return newSteps
-        })
-        if (activeStepId === stepId) {
-            setActiveStepId(steps[0]?.id === stepId ? steps[1]?.id : steps[0]?.id)
-            setSelectedField(null)
-        }
-    }
-
-    const updateStep = (stepId: string, updates: Partial<LocalStep>) => {
-        setSteps(prev => prev.map(s => s.id === stepId ? { ...s, ...updates } : s))
-    }
-
-    const activeStepIndex = isMultiStep ? steps.findIndex(s => s.id === activeStepId) : -1
-
-    const addField = (type: LocalField["type"]) => {
-        const newField: LocalField = {
-            id: `field-${Date.now()}`,
-            type,
-            label: `${fieldTypes.find((f) => f.type === type)?.label} Field`,
-            placeholder: "",
-            required: false,
-            options: ["radio", "checkbox", "select"].includes(type) ? ["Option 1", "Option 2"] : undefined,
-        }
-        if (isMultiStep) {
-            if (activeStepIndex === -1) { toast({ title: "Error", description: "Select a step first.", variant: "destructive" }); return }
-            const newSteps = [...steps]
-            newSteps[activeStepIndex].fields = [...newSteps[activeStepIndex].fields, newField]
-            setSteps(newSteps)
-        } else {
-            setFormFields((prev) => [...prev, newField])
-        }
-        setSelectedField(newField)
-    }
-
-    const updateField = (fieldId: string, updates: Partial<LocalField>) => {
-        if (isMultiStep) {
-            setSteps(prev => prev.map(step => ({
-                ...step,
-                fields: step.fields.map(f => f.id === fieldId ? { ...f, ...updates } : f)
-            })))
-        } else {
-            setFormFields((fields) => fields.map((f) => (f.id === fieldId ? { ...f, ...updates } : f)))
-        }
-        if (selectedField?.id === fieldId) setSelectedField((prev) => prev ? { ...prev, ...updates } : prev)
-    }
-
-    const removeField = (fieldId: string) => {
-        if (isMultiStep) {
-            setSteps(prev => prev.map(step => ({
-                ...step,
-                fields: step.fields.filter(f => f.id !== fieldId)
-            })))
-        } else {
-            setFormFields((fields) => fields.filter((f) => f.id !== fieldId))
-        }
-        if (selectedField?.id === fieldId) setSelectedField(null)
-    }
-
-    const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return
-
-        if (result.type === "step") {
-            const items = Array.from(steps)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            setSteps(items.map((s, i) => ({ ...s, stepNumber: i + 1 })))
-            return
-        }
-
-        if (isMultiStep) {
-            const stepId = result.source.droppableId
-            const stepIndex = steps.findIndex(s => s.id === stepId)
-            if (stepIndex === -1) return
-            const items = Array.from(steps[stepIndex].fields)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            const newSteps = [...steps]
-            newSteps[stepIndex].fields = items
-            setSteps(newSteps)
-        } else {
-            const items = Array.from(formFields)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            setFormFields(items)
-        }
-    }
-
-    const toBackendPayload = (): any => {
-        if (!isMultiStep) {
-            return {
-                isMultiStep: false,
-                fields: formFields.map((f, index) => ({
-                    key: f.backendKey ?? f.label.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
-                    type: f.type.toUpperCase() as any,
-                    label: f.label,
-                    required: f.required,
-                    order: index,
-                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
-                        ? { choices: f.options }
-                        : {},
-                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
-                        ? f.validation
-                        : {},
-                }))
-            }
-        }
-        return {
-            isMultiStep: true,
-            steps: steps.map((step) => ({
-                stepNumber: step.stepNumber,
-                title: step.title,
-                description: step.description || undefined,
-                fields: step.fields.map((f, index) => ({
-                    key: f.backendKey ?? f.label.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
-                    type: f.type.toUpperCase() as any,
-                    label: f.label,
-                    required: f.required,
-                    order: index,
-                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
-                        ? { choices: f.options }
-                        : {},
-                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
-                        ? f.validation
-                        : {},
-                }))
-            }))
-        }
-    }
-
     const renderFieldIcon = (type: LocalField["type"]) => {
-        const fieldType = fieldTypes.find((f) => f.type === type)
+        const fieldType = FIELD_TYPES.find((f) => f.type === type)
         if (!fieldType) return null
         const Icon = fieldType.icon
         return <Icon className="h-4 w-4" />
@@ -294,7 +103,7 @@ export default function CreateEvent() {
 
     const handleStepOneNext = async () => {
         if (!eventData.title.trim()) {
-            toast({ title: "Validation Error", description: "Please enter an event title.", variant: "destructive" })
+            toast.error("Please enter an event title.")
             return
         }
         try {
@@ -328,7 +137,7 @@ export default function CreateEvent() {
                     })
                     await updateEvent(event.id, { bannerUrl: result.url })
                 } catch (err: any) {
-                    toast({ title: "Banner Upload Failed", description: err.message || "Failed to upload banner.", variant: "destructive" })
+                    toast.error("Banner Upload Failed", { description: err.message || "Failed to upload banner." })
                 } finally {
                     setIsUploadingBanner(false)
                 }
@@ -336,25 +145,25 @@ export default function CreateEvent() {
 
             setCurrentStep(2)
         } catch (err: any) {
-            toast({ title: "Error", description: err.message, variant: "destructive" })
+            toast.error(err.message)
         }
     }
 
     const handleSaveAndPublish = async () => {
         if (!createdEventId) {
-            toast({ title: "Error", description: "Event not created yet.", variant: "destructive" })
+            toast.error("Event not created yet.")
             return
         }
         if (!isMultiStep && formFields.length === 0) {
-            toast({ title: "Validation Error", description: "Please add at least one form field.", variant: "destructive" })
+            toast.error("Please add at least one form field.")
             return
         }
         if (isMultiStep && steps.length === 0) {
-            toast({ title: "Validation Error", description: "Please add at least one step.", variant: "destructive" })
+            toast.error("Please add at least one step.")
             return
         }
         if (isMultiStep && steps.some(s => s.fields.length === 0)) {
-            toast({ title: "Validation Error", description: "Each step must have at least one field.", variant: "destructive" })
+            toast.error("Each step must have at least one field.")
             return
         }
 
@@ -378,7 +187,7 @@ export default function CreateEvent() {
             setPublishedFormUrl(formUrl)
             setShowPublishSuccess(true)
         } catch (err: any) {
-            toast({ title: "Publishing Failed", description: err.message, variant: "destructive" })
+            toast.error("Publishing Failed", { description: err.message })
         } finally {
             setIsPublishing(false)
         }
@@ -476,7 +285,7 @@ export default function CreateEvent() {
                                                     const file = e.target.files?.[0]
                                                     if (file) {
                                                         if (file.size > 5 * 1024 * 1024) {
-                                                            toast({ title: "File too large", description: "Max size is 5MB.", variant: "destructive" })
+                                                            toast.error("File too large", { description: "Max size is 5MB." })
                                                             return
                                                         }
                                                         setEventData({ ...eventData, banner: file })
@@ -604,7 +413,7 @@ export default function CreateEvent() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-6">
-                                        {fieldTypes.map((fieldType) => (
+                                        {FIELD_TYPES.map((fieldType) => (
                                             <Button
                                                 key={fieldType.type}
                                                 variant="outline"
@@ -688,8 +497,6 @@ export default function CreateEvent() {
                                             <DragDropContext onDragEnd={onDragEnd}>
                                                 <Droppable droppableId={isMultiStep ? (activeStepId || "empty-step") : "form-fields"} type="field">
                                                     {(provided) => {
-                                                        const currentFields = isMultiStep ? (activeStepIndex !== -1 ? steps[activeStepIndex].fields : []) : formFields
-
                                                         return (
                                                             <div
                                                                 {...provided.droppableProps}

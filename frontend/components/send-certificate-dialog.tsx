@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, type ReactNode } from "react"
 import { useSendMessage, useResolveParams } from "@/lib/query/hooks/useMessages"
 import { MessageType } from "@/lib/api/messages"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
@@ -8,16 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { Send, RefreshCw, Check, MessageSquare } from "lucide-react"
 
 interface SendCertificateDialogProps {
-    contactId: string           // the recipient — already known from the row
-    contactName: string         // display name
-    eventId: string             // for param resolution
-    eventTitle: string          // display only
-    certificateFileUrl: string  // direct PDF download URL
-    trigger: React.ReactNode    // the button that opens the dialog
+    contactId: string
+    contactName: string
+    eventId: string
+    eventTitle: string
+    certificateFileUrl: string
+    trigger: React.ReactNode
     onSuccess?: () => void
 }
 
@@ -30,7 +30,6 @@ export function SendCertificateDialog({
     trigger,
     onSuccess,
 }: SendCertificateDialogProps) {
-    const { toast } = useToast()
     const [open, setOpen] = useState(false)
     const [msgType, setMsgType] = useState<MessageType>("WHATSAPP")
     const [paramOverrides, setParamOverrides] = useState<Record<string, string>>({})
@@ -68,11 +67,11 @@ export function SendCertificateDialog({
                     link: certificateFileUrl // always override — this is the actual PDF URL
                 },
             })
-            toast({ description: `Certificate notification sent to ${contactName}.` })
+            toast(`Certificate notification sent to ${contactName}.`)
             setOpen(false)
             onSuccess?.()
         } catch (err: any) {
-            toast({ variant: "destructive", description: err.message ?? "Failed to send notification." })
+            toast.error("Failed to send notification.")
         }
     }
 

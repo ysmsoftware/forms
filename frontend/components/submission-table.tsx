@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react"
 import { format } from "date-fns"
 import { FileText, Loader2, Paperclip } from "lucide-react"

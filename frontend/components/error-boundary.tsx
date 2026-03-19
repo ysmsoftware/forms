@@ -1,12 +1,14 @@
-import React from "react"
+"use client"
+
+import { Component, type ReactNode, type ErrorInfo } from "react"
 import { AlertCircle, RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface Props {
-    children: React.ReactNode
-    fallback?: React.ReactNode       // optional custom fallback UI
-    onReset?: () => void             // optional reset callback
+    children: ReactNode
+    fallback?: ReactNode
+    onReset?: () => void
 }
 
 interface State {
@@ -14,7 +16,7 @@ interface State {
     error: Error | null
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props)
         this.state = { hasError: false, error: null }
@@ -24,7 +26,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         return { hasError: true, error }
     }
 
-    componentDidCatch(error: Error, info: React.ErrorInfo) {
+    componentDidCatch(error: Error, info: ErrorInfo) {
         console.error("[ErrorBoundary caught]", error, info.componentStack)
     }
 

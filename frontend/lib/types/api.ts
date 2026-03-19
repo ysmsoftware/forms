@@ -47,8 +47,14 @@ export interface FormField {
     label: string;
     required: boolean;
     order: number;
-    options?: string[];
-    validation?: { minLength?: number; maxLength?: number; min?: number; max?: number };
+    options?: { choices: string[] } | string[];
+    validation?: {
+        minLength?: number;
+        maxLength?: number;
+        min?: number;
+        max?: number;
+        pattern?: string;
+    };
 }
 
 export interface FormStep {

@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { CreditCard, CheckCircle, Clock, Shield, FormInput, Loader2, AlertCircle, XCircle } from "lucide-react"
 import {
     loadPublicForm,
@@ -715,15 +715,18 @@ export default function PublicForm() {
                                     <p className="text-sm text-muted-foreground mb-4">
                                         If you have any questions about this event or need assistance with registration, please contact us.
                                     </p>
-                                    <Button variant="outline" className="w-full bg-transparent">
-                                        Contact Support
-                                    </Button>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Email: <a href="mailto:support@ysminfosolution.com">support@ysminfosolution.com</a>
+                                    </p>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Phone: <a href="tel:+918983083698">+91 89830 83698</a>
+                                    </p>
                                 </CardContent>
                             </Card>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

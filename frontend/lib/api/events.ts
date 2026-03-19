@@ -42,6 +42,13 @@ export async function deleteEvent(id: string): Promise<void> {
     return apiClient(`/events/${id}`, { method: "DELETE" });
 }
 
+/**
+ * Client-side event duplication — copies title, description, date, and link only.
+ * Does NOT copy: form fields, form steps, payment config, or any submissions.
+ *
+ * For a full deep copy including form fields, a backend endpoint
+ * POST /events/:id/duplicate should be implemented.
+ */
 export async function duplicateEvent(id: string): Promise<Event> {
     // Fetch the event, then create a copy
     const original = await apiClient<Event>(`/events/${id}`);

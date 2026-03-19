@@ -22,13 +22,12 @@ import {
     Award,
 } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { SendMessageDialog } from "@/components/send-message-dialog"
 import { MessageSquare } from "lucide-react"
 import { useEvent } from "@/lib/query/hooks/useEvents"
 import { useEventAnalytics } from "@/lib/query/hooks/useAnalytics"
 import { useSubmissionsByEvent } from "@/lib/query/hooks/useSubmissions"
-import type { EventAnalyticsDetail } from "@/lib/types/api"
 import { format } from "date-fns"
 import { SubmissionTable } from "@/components/submission-table"
 
@@ -43,8 +42,6 @@ const statusColor: Record<string, string> = {
 export default function EventDetailPage() {
     const params = useParams()
     const id = params.id as string
-
-    const { toast } = useToast()
 
     const { data: event, isLoading: isLoadingEvent } = useEvent(id)
     const { data: analytics, isLoading: isLoadingAnalytics } = useEventAnalytics(id)
@@ -73,7 +70,7 @@ export default function EventDetailPage() {
         if (!event) return
         const url = `${window.location.origin}/form/${event.slug}`
         navigator.clipboard.writeText(url)
-        toast({ description: "Form URL copied to clipboard." })
+        toast("Form URL copied to clipboard.")
     }
 
     /* ────────────────────── Loading state ────────────────────── */
@@ -155,7 +152,7 @@ export default function EventDetailPage() {
                         defaultEventLabel={event?.title}
                         defaultMode="bulk"
                         preSelectedContactIds={submitterContactIds}
-                        onSuccess={() => toast({ description: "Messages queued for all submitters" })}
+                        onSuccess={() => toast("Messages queued for all submitters")}
                         trigger={
                             <Button variant="outline" disabled={submitterContactIds.length === 0}>
                                 <MessageSquare className="mr-2 h-4 w-4" />

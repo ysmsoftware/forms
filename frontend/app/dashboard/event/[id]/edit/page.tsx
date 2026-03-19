@@ -51,44 +51,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query/keys"
 import { getFormByEventId, updateForm, publishForm, createForm } from "@/lib/api/forms"
 import type { Event, Form, FormFieldInput } from "@/lib/types/api"
+import { getStatusColor } from "@/lib/event-utils"
+import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/lib/hooks/useFormBuilder"
 
-interface LocalField {
-    id: string
-    type: "text" | "textarea" | "number" | "email" | "radio" | "checkbox" | "select" | "date" | "file" | "range"
-    label: string
-    placeholder?: string
-    required: boolean
-    options?: string[]          // internal UI representation — always string[]
-    backendKey?: string
-    validation?: {
-        minLength?: number
-        maxLength?: number
-        min?: number
-        max?: number
-        pattern?: string
-    }
-}
-
-interface LocalStep {
-    id: string
-    stepNumber: number
-    title: string
-    description: string
-    fields: LocalField[]
-}
-
-const fieldTypes = [
-    { type: "text", label: "Text Input", icon: Type },
-    { type: "textarea", label: "Textarea", icon: FileText },
-    { type: "number", label: "Number", icon: Hash },
-    { type: "range", label: "Range Slider", icon: Hash },
-    { type: "email", label: "Email", icon: Mail },
-    { type: "radio", label: "Radio Buttons", icon: Circle },
-    { type: "checkbox", label: "Checkboxes", icon: CheckSquare },
-    { type: "select", label: "Dropdown", icon: ChevronDown },
-    { type: "date", label: "Date Picker", icon: Calendar },
-    { type: "file", label: "File Upload", icon: Upload },
-] as const
 
 const TEMPLATE_TYPES = ["COMPLETION", "ACHIEVEMENT", "WORKSHOP", "INTERNSHIP", "APPOINTMENT"] as const
 
@@ -116,13 +81,29 @@ export default function EditEventPage() {
     })
 
     const [form, setForm] = useState<Form | null>(null)
-    const [formFields, setFormFields] = useState<LocalField[]>([])
-    const [selectedField, setSelectedField] = useState<LocalField | null>(null)
-
-    const [isMultiStep, setIsMultiStep] = useState(false)
-    const [steps, setSteps] = useState<LocalStep[]>([])
-    const [activeStepId, setActiveStepId] = useState<string | null>(null)
-    const [editingStepId, setEditingStepId] = useState<string | null>(null)
+    const fb = useFormBuilder()
+    const {
+        formFields,
+        selectedField,
+        setSelectedField,
+        isMultiStep,
+        steps,
+        activeStepId,
+        setActiveStepId,
+        editingStepId,
+        setEditingStepId,
+        handleToggleMultiStep,
+        addStep,
+        removeStep,
+        updateStep,
+        addField,
+        updateField,
+        removeField,
+        onDragEnd,
+        toBackendPayload,
+        activeStepIndex,
+        currentFields
+    } = fb
 
     useEffect(() => {
         Promise.all([
@@ -142,230 +123,13 @@ export default function EditEventPage() {
                 })
                 if (formData) {
                     setForm(formData)
-                    if (formData.isMultiStep && formData.steps && formData.steps.length > 0) {
-                        setIsMultiStep(true)
-                        setSteps(formData.steps.map((step: any) => ({
-                            id: `step-${step.id ?? step.stepNumber}`,
-                            stepNumber: step.stepNumber,
-                            title: step.title,
-                            description: step.description ?? "",
-                            fields: (step.fields ?? []).map((f: any) => ({
-                                id: `field-${f.id ?? f.key}`,
-                                type: f.type.toLowerCase() as LocalField["type"],
-                                label: f.label,
-                                placeholder: (f as any).placeholder ?? "", // placeholder is not strictly in FormField API types yet
-                                required: f.required ?? false,
-                                options: f.options
-                                    ? (Array.isArray(f.options)
-                                        ? f.options                          // legacy flat array
-                                        : (f.options as any).choices ?? [])  // backend shape { choices: [...] }
-                                    : undefined,
-                                validation: (f as any).validation && Object.keys((f as any).validation).length > 0
-                                    ? (f as any).validation
-                                    : undefined,
-                                backendKey: f.key,
-                            }))
-                        })))
-                        setActiveStepId(`step-${formData.steps[0].id ?? formData.steps[0].stepNumber}`)
-                    } else {
-                        const mapped: LocalField[] = (formData.fields ?? []).map((f) => ({
-                            id: `field-${f.id ?? f.key}`,
-                            type: f.type.toLowerCase() as LocalField["type"],
-                            label: f.label,
-                            placeholder: (f as any).placeholder ?? "", // placeholder is not strictly in FormField API types yet
-                            required: f.required ?? false,
-                            options: f.options
-                                ? (Array.isArray(f.options)
-                                    ? f.options                          // legacy flat array
-                                    : (f.options as any).choices ?? [])  // backend shape { choices: [...] }
-                                : undefined,
-                            validation: (f as any).validation && Object.keys((f as any).validation).length > 0
-                                ? (f as any).validation
-                                : undefined,
-                            backendKey: f.key,
-                        }))
-                        setFormFields(mapped)
-                    }
+                    fb.loadFromBackend(formData)
                 }
             })
             .catch((err) => toast.error(err.message))
             .finally(() => setIsLoading(false))
     }, [id])
 
-    const activeStepIndex = steps.findIndex(s => s.id === activeStepId)
-
-    const handleToggleMultiStep = (multi: boolean) => {
-        if (multi === isMultiStep) return
-        if (multi) {
-            setIsMultiStep(true)
-            const initialStep: LocalStep = {
-                id: `step-${Date.now()}`,
-                stepNumber: 1,
-                title: "Step 1",
-                description: "",
-                fields: [...formFields]
-            }
-            setSteps([initialStep])
-            setActiveStepId(initialStep.id)
-            setFormFields([])
-            setSelectedField(null)
-        } else {
-            setIsMultiStep(false)
-            const allFields = steps.flatMap(s => s.fields)
-            setFormFields(allFields)
-            setSteps([])
-            setActiveStepId(null)
-            setSelectedField(null)
-            toast.warning("Switched to single step. All fields merged into one step.")
-        }
-    }
-
-    const addStep = () => {
-        const newStep: LocalStep = {
-            id: `step-${Date.now()}`,
-            stepNumber: steps.length + 1,
-            title: `Step ${steps.length + 1}`,
-            description: "",
-            fields: []
-        }
-        setSteps(prev => [...prev, newStep])
-        setActiveStepId(newStep.id)
-        setSelectedField(null)
-    }
-
-    const removeStep = (stepId: string) => {
-        setSteps(prev => {
-            const newSteps = prev.filter(s => s.id !== stepId).map((s, i) => ({ ...s, stepNumber: i + 1 }))
-            return newSteps
-        })
-        if (activeStepId === stepId) {
-            setActiveStepId(steps[0]?.id === stepId ? steps[1]?.id : steps[0]?.id)
-            setSelectedField(null)
-        }
-    }
-
-    const updateStep = (stepId: string, updates: Partial<LocalStep>) => {
-        setSteps(prev => prev.map(s => s.id === stepId ? { ...s, ...updates } : s))
-    }
-
-    const addField = (type: LocalField["type"]) => {
-        const newField: LocalField = {
-            id: `field-${Date.now()}`,
-            type,
-            label: `${fieldTypes.find((f) => f.type === type)?.label} Field`,
-            placeholder: "",
-            required: false,
-            options: ["radio", "checkbox", "select"].includes(type) ? ["Option 1", "Option 2"] : undefined,
-        }
-        if (isMultiStep) {
-            if (activeStepIndex === -1) { toast.error("Select a step first."); return }
-            const newSteps = [...steps]
-            newSteps[activeStepIndex].fields = [...newSteps[activeStepIndex].fields, newField]
-            setSteps(newSteps)
-        } else {
-            setFormFields((prev) => [...prev, newField])
-        }
-        setSelectedField(newField)
-    }
-
-    const updateField = (fieldId: string, updates: Partial<LocalField>) => {
-        if (isMultiStep) {
-            setSteps(prev => prev.map(step => ({
-                ...step,
-                fields: step.fields.map(f => f.id === fieldId ? { ...f, ...updates } : f)
-            })))
-        } else {
-            setFormFields((fields) => fields.map((f) => (f.id === fieldId ? { ...f, ...updates } : f)))
-        }
-        if (selectedField?.id === fieldId) setSelectedField((prev) => prev ? { ...prev, ...updates } : prev)
-    }
-
-    const removeField = (fieldId: string) => {
-        if (isMultiStep) {
-            setSteps(prev => prev.map(step => ({
-                ...step,
-                fields: step.fields.filter(f => f.id !== fieldId)
-            })))
-        } else {
-            setFormFields((fields) => fields.filter((f) => f.id !== fieldId))
-        }
-        if (selectedField?.id === fieldId) setSelectedField(null)
-    }
-
-    const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return
-
-        if (result.type === "step") {
-            const items = Array.from(steps)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            setSteps(items.map((s, i) => ({ ...s, stepNumber: i + 1 })))
-            return
-        }
-
-        if (isMultiStep) {
-            const stepId = result.source.droppableId
-            const stepIndex = steps.findIndex(s => s.id === stepId)
-            if (stepIndex === -1) return
-            const items = Array.from(steps[stepIndex].fields)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            const newSteps = [...steps]
-            newSteps[stepIndex].fields = items
-            setSteps(newSteps)
-        } else {
-            const items = Array.from(formFields)
-            const [moved] = items.splice(result.source.index, 1)
-            items.splice(result.destination.index, 0, moved)
-            setFormFields(items)
-        }
-    }
-
-    const toBackendPayload = (): any => {
-        if (!isMultiStep) {
-            return {
-                isMultiStep: false,
-                fields: formFields.map((f, index) => ({
-                    key: f.backendKey ?? f.label.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
-                    type: f.type.toUpperCase() as any,
-                    label: f.label,
-                    required: f.required,
-                    order: index,
-                    // Wrap choices array into backend-expected shape for choice fields
-                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
-                        ? { choices: f.options }
-                        : {},
-                    // Only send validation if at least one key has a value
-                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
-                        ? f.validation
-                        : {},
-                }))
-            }
-        }
-        return {
-            isMultiStep: true,
-            steps: steps.map((step) => ({
-                stepNumber: step.stepNumber,
-                title: step.title,
-                description: step.description || undefined,
-                fields: step.fields.map((f, index) => ({
-                    key: f.backendKey ?? f.label.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
-                    type: f.type.toUpperCase() as any,
-                    label: f.label,
-                    required: f.required,
-                    order: index,
-                    // Wrap choices array into backend-expected shape for choice fields
-                    options: ["radio", "checkbox", "select"].includes(f.type) && f.options?.length
-                        ? { choices: f.options }
-                        : {},
-                    // Only send validation if at least one key has a value
-                    validation: f.validation && Object.values(f.validation).some(v => v !== undefined && v !== "")
-                        ? f.validation
-                        : {},
-                }))
-            }))
-        }
-    }
 
     const handleSaveEvent = async () => {
         if (!eventForm.title.trim()) { toast.error("Event title is required."); return }
@@ -479,11 +243,6 @@ export default function EditEventPage() {
         }
     }
 
-    const statusColor = (s: string) => {
-        if (s === "ACTIVE") return "bg-green-100 text-green-800 border-green-200"
-        if (s === "DRAFT") return "bg-yellow-100 text-yellow-800 border-yellow-200"
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
 
     if (isLoading) {
         return (
@@ -508,7 +267,7 @@ export default function EditEventPage() {
                         <div>
                             <h1 className="text-2xl font-bold">{event?.title ?? "Edit Event"}</h1>
                             <div className="flex items-center gap-2 mt-1">
-                                <Badge className={statusColor(event?.status ?? "DRAFT")}>
+                                <Badge className={getStatusColor(event?.status ?? "DRAFT")}>
                                     {event?.status ? event.status.charAt(0) + event.status.slice(1).toLowerCase() : "Draft"}
                                 </Badge>
                                 <span className="text-sm text-muted-foreground">/form/{event?.slug}</span>
@@ -649,7 +408,7 @@ export default function EditEventPage() {
                     <CardContent className="space-y-6">
                         {event?.status !== "CLOSED" && (
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                {fieldTypes.map((ft) => (
+                                {FIELD_TYPES.map((ft) => (
                                     <Button key={ft.type} variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3 bg-transparent" onClick={() => addField(ft.type)}>
                                         <ft.icon className="h-4 w-4" />
                                         <span className="text-xs">{ft.label}</span>
@@ -732,9 +491,6 @@ export default function EditEventPage() {
                                 <DragDropContext onDragEnd={onDragEnd}>
                                     <Droppable droppableId={isMultiStep ? (activeStepId || "empty-step") : "edit-fields"} type="field">
                                         {(provided) => {
-                                            const activeStepIndex = isMultiStep ? steps.findIndex(s => s.id === activeStepId) : -1
-                                            const currentFields = isMultiStep ? (activeStepIndex !== -1 ? steps[activeStepIndex].fields : []) : formFields
-
                                             return (
                                                 <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 min-h-[200px] border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 bg-muted/5">
                                                     {isMultiStep && activeStepIndex === -1 ? (
@@ -758,7 +514,7 @@ export default function EditEventPage() {
                                                                         onClick={() => setSelectedField(field)}
                                                                     >
                                                                         <div {...provided.dragHandleProps}><GripVertical className="h-4 w-4 text-muted-foreground" /></div>
-                                                                        {fieldTypes.find(f => f.type === field.type) && (() => { const Icon = fieldTypes.find(f => f.type === field.type)!.icon; return <Icon className="h-4 w-4" /> })()}
+                                                                        {FIELD_TYPES.find(f => f.type === field.type) && (() => { const Icon = FIELD_TYPES.find(f => f.type === field.type)!.icon; return <Icon className="h-4 w-4" /> })()}
                                                                         <div className="flex-1 min-w-0">
                                                                             <div className="font-medium text-sm truncate">{field.label}</div>
                                                                             <div className="text-xs text-muted-foreground">

@@ -26,35 +26,24 @@ import {
 import Link from "next/link"
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/use-toast"
-import type { Event } from "@/lib/types/api"
+import { toast } from "sonner"
 import { useEvents, useDeleteEvent, useDuplicateEvent } from "@/lib/query/hooks/useEvents"
-import { useAllEventAnalytics } from "@/lib/query/hooks/useAnalytics"
+import { useEventAnalyticsMap } from "@/lib/query/hooks/useEventAnalyticsMap"
+import { getStatusColor, copyFormUrl } from "@/lib/event-utils"
 
-const statusColor: Record<string, string> = {
-    DRAFT: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    ACTIVE: "bg-green-100 text-green-800 border-green-200",
-    CLOSED: "bg-gray-100 text-gray-800 border-gray-200",
-}
-
-export default function EventsListPage() {
+export default function EventsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [datePickerOpen, setDatePickerOpen] = useState(false)
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-    const { toast } = useToast()
     const deleteEvent = useDeleteEvent()
     const duplicateEvent = useDuplicateEvent()
 
     const { data: events = [], isLoading } = useEvents()
-    const analyticsResults = useAllEventAnalytics(events)
-
-    const analyticsMap = Object.fromEntries(
-        events.map((e, i) => [e.id, analyticsResults[i]?.data])
-    )
-    const isAnalyticsLoaded = analyticsResults.every(r => !r.isLoading)
+    const { analyticsMap, isLoading: isAnalyticsLoading } = useEventAnalyticsMap(events)
+    const isAnalyticsLoaded = !isAnalyticsLoading
 
     const filteredEvents = events.filter((e) => {
         const matchesSearch = e.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -73,11 +62,6 @@ export default function EventsListPage() {
         return matchesSearch && matchesStatus && matchesDate
     })
 
-    const handleCopyUrl = (slug: string) => {
-        const url = `${window.location.origin}/form/${slug}`
-        navigator.clipboard.writeText(url)
-        toast({ description: "URL copied!" })
-    }
 
     if (isLoading) {
         return (
@@ -247,7 +231,7 @@ export default function EventsListPage() {
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     className="flex items-center gap-2 cursor-pointer"
-                                                    onClick={() => handleCopyUrl(event.slug)}
+                                                    onClick={async () => { await copyFormUrl(event.slug); toast("URL copied!") }}
                                                 >
                                                     <Copy className="h-4 w-4" />
                                                     Copy URL
@@ -258,9 +242,9 @@ export default function EventsListPage() {
                                                     onClick={async () => {
                                                         try {
                                                             await duplicateEvent.mutateAsync(event.id)
-                                                            toast({ description: `"${event.title}" duplicated` })
+                                                            toast(`"${event.title}" duplicated`)
                                                         } catch {
-                                                            toast({ variant: "destructive", description: "Failed to duplicate event" })
+                                                            toast.error("Failed to duplicate event")
                                                         }
                                                     }}
                                                 >
@@ -281,7 +265,7 @@ export default function EventsListPage() {
 
                                     {/* Status badge + created date on same row */}
                                     <div className="flex items-center justify-between mt-1.5">
-                                        <Badge className={`${statusColor[event.status] ?? statusColor.CLOSED} text-xs`}>
+                                        <Badge className={`${getStatusColor(event.status)} text-xs`}>
                                             {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
                                         </Badge>
                                         <span className="text-xs text-muted-foreground">
@@ -308,19 +292,19 @@ export default function EventsListPage() {
                                             <Users className="h-4 w-4 text-blue-500 shrink-0" />
                                             <span className="text-sm text-muted-foreground">Visitors:</span>
                                             <span className="text-sm font-semibold ml-auto">
-                                                {isAnalyticsLoaded ? (a?.totalVisits ?? 0) : <Skeleton className="h-4 w-8 inline-block" />}
+                                                {!isAnalyticsLoading ? (a?.totalVisits ?? 0) : <Skeleton className="h-4 w-8 inline-block" />}
                                             </span>
                                             {/* Submissions inline on same row if available */}
                                             <span className="text-sm text-muted-foreground ml-4 hidden sm:inline">Submissions:</span>
                                             <span className="text-sm font-semibold hidden sm:inline">
-                                                {isAnalyticsLoaded ? (a?.totalSubmitted ?? 0) : <Skeleton className="h-4 w-8 inline-block" />}
+                                                {!isAnalyticsLoading ? (a?.totalSubmitted ?? 0) : <Skeleton className="h-4 w-8 inline-block" />}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <DollarSign className="h-4 w-4 text-green-500 shrink-0" />
                                             <span className="text-sm text-muted-foreground">Revenue:</span>
                                             <span className="text-sm font-semibold ml-auto">
-                                                ₹{isAnalyticsLoaded ? ((a as any)?.totalRevenue ?? 0).toLocaleString("en-IN") : "—"}
+                                                ₹{!isAnalyticsLoading ? ((a as any)?.totalRevenue ?? 0).toLocaleString("en-IN") : "—"}
                                             </span>
                                         </div>
                                     </div>
@@ -391,9 +375,9 @@ export default function EventsListPage() {
                                 if (!deleteConfirmId) return
                                 try {
                                     await deleteEvent.mutateAsync(deleteConfirmId)
-                                    toast({ description: "Event deleted" })
+                                    toast("Event deleted")
                                 } catch {
-                                    toast({ variant: "destructive", description: "Failed to delete event" })
+                                    toast.error("Failed to delete event")
                                 } finally {
                                     setDeleteConfirmId(null)
                                 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, type ReactNode } from "react"
 import { useIssueCertificate } from "@/lib/query/hooks/useCertificate"
 import { useEvents } from "@/lib/query/hooks/useEvents"
 import { useContacts } from "@/lib/query/hooks/useContacts"
@@ -11,10 +11,17 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { useToast } from "@/components/ui/use-toast"
-import { Award, RefreshCw, Check, ChevronsUpDown } from "lucide-react"
+import { toast } from "sonner"
+import { Award, RefreshCw, Check, ChevronsUpDown, Search } from "lucide-react"
 
 export interface IssueCertificateDialogProps {
     /** Pre-select an event in the Event combobox and lock it */
@@ -27,6 +34,8 @@ export interface IssueCertificateDialogProps {
     preSelectedContactIds?: string[]
     /** Map contactId → submissionId (critical for issuing) */
     submissionIdByContactId?: Record<string, string>
+    /** List of contacts eligible to receive a certificate (those who submitted) */
+    eligibleContacts?: { id: string; name: string; email?: string }[]
     /** Custom trigger element. Defaults to an "Issue Certificate" button */
     trigger?: React.ReactNode
     /** Called after a successful issue (single or bulk completion) */
@@ -39,10 +48,10 @@ export function IssueCertificateDialog({
     defaultMode,
     preSelectedContactIds,
     submissionIdByContactId,
+    eligibleContacts = [],
     trigger,
     onSuccess,
 }: IssueCertificateDialogProps) {
-    const { toast } = useToast()
 
     const [open, setOpen] = useState(false)
     const [mode, setMode] = useState<"single" | "bulk">(defaultMode ?? "single")
@@ -50,31 +59,21 @@ export function IssueCertificateDialog({
     const [selectedContacts, setSelectedContacts] = useState<string[]>(preSelectedContactIds ?? [])
     const [eventId, setEventId] = useState(defaultEventId || "")
     const [selectedEventLabel, setSelectedEventLabel] = useState(defaultEventLabel || "")
-    const [selectedContactLabel, setSelectedContactLabel] = useState("")
-    const [contactSearchOpen, setContactSearchOpen] = useState(false)
     const [eventSearchOpen, setEventSearchOpen] = useState(false)
     const [bulkSearch, setBulkSearch] = useState("")
     const [bulkProgress, setBulkProgress] = useState<{ issued: number; total: number } | null>(null)
 
     // ── Data hooks ──────────────────────────────────────────────────────────
     const { data: events = [], isLoading: isLoadingEvents } = useEvents()
-    const { data: contactsData, isLoading: isLoadingContacts } = useContacts()
-
-    const allContacts = useMemo(() => {
-        if (!contactsData) return []
-        if ("pages" in (contactsData as any)) return (contactsData as any).pages.flatMap((p: any) => p.contacts || [])
-        if ("contacts" in (contactsData as any)) return (contactsData as any).contacts
-        return []
-    }, [contactsData])
 
     const bulkFilteredContacts = useMemo(() => {
-        if (!bulkSearch) return allContacts
+        if (!bulkSearch) return eligibleContacts
         const s = bulkSearch.toLowerCase()
-        return allContacts.filter((c: any) =>
+        return eligibleContacts.filter((c: any) =>
             (c.name && c.name.toLowerCase().includes(s)) ||
             (c.email && c.email.toLowerCase().includes(s))
         )
-    }, [allContacts, bulkSearch])
+    }, [eligibleContacts, bulkSearch])
 
     const issueSingle = useIssueCertificate(eventId)
 
@@ -98,17 +97,18 @@ export function IssueCertificateDialog({
         if (mode === "single") {
             const submissionId = submissionIdByContactId?.[contactId]
             if (!submissionId) {
-                toast({ variant: "destructive", description: "No submission found for this contact." })
+                toast.error("No submission found for this contact.")
                 return
             }
             issueSingle.mutate(submissionId, {
                 onSuccess: () => {
-                    toast({ description: `Certificate queued for ${selectedContactLabel || "contact"}.` })
+                    const c = eligibleContacts.find(c => c.id === contactId)
+                    toast.success(`Certificate queued for ${c?.name || "contact"}.`)
                     setOpen(false)
                     onSuccess?.()
                 },
                 onError: (err: Error) => {
-                    toast({ variant: "destructive", description: err.message || "Failed to issue certificate." })
+                    toast.error(err.message || "Failed to issue certificate.")
                 },
             })
         } else {
@@ -136,10 +136,10 @@ export function IssueCertificateDialog({
             const successCount = results.filter(r => r.success).length
             const failCount = results.filter(r => !r.success).length
             if (failCount === 0) {
-                toast({ description: `${successCount} certificate(s) queued.` })
+                toast(`${successCount} certificate(s) queued.`)
                 onSuccess?.()
             } else {
-                toast({ variant: "destructive", description: `${successCount} queued, ${failCount} failed.` })
+                toast.error(`${successCount} queued, ${failCount} failed.`)
                 if (successCount > 0) onSuccess?.()
             }
         }
@@ -156,12 +156,10 @@ export function IssueCertificateDialog({
         <Dialog open={open} onOpenChange={(val) => {
             setOpen(val)
             if (!val) {
-                setContactId("")
                 if (!defaultEventId) {
                     setEventId("")
                     setSelectedEventLabel("")
                 }
-                setSelectedContactLabel("")
                 setSelectedContacts(preSelectedContactIds ?? [])
                 setBulkSearch("")
                 if (!defaultMode) setMode("single")
@@ -252,62 +250,45 @@ export function IssueCertificateDialog({
                                 <h3 className="font-semibold text-sm mb-3">Recipient</h3>
                                 <div className="space-y-2 flex flex-col">
                                     <label className="text-sm font-medium">Contact</label>
-                                    <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" role="combobox" aria-expanded={contactSearchOpen} className="w-full justify-between overflow-hidden">
-                                                <span className="truncate">{contactId ? selectedContactLabel : "Search contact..."}</span>
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[300px] p-0" align="start">
-                                            <Command>
-                                                <CommandInput placeholder="Search by name or email..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No contact found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {isLoadingContacts ? (
-                                                            <div className="p-4 text-sm text-center text-muted-foreground">Loading contacts...</div>
-                                                        ) : (
-                                                            allContacts.map((c: any) => (
-                                                                <CommandItem key={c.id} onSelect={() => {
-                                                                    setContactId(c.id)
-                                                                    setSelectedContactLabel(c.name || c.email || "Unknown")
-                                                                    setContactSearchOpen(false)
-                                                                }}>
-                                                                    <Check className={cn("mr-2 h-4 w-4", contactId === c.id ? "opacity-100" : "opacity-0")} />
-                                                                    <div className="flex flex-col">
-                                                                        <span className="font-bold">{c.name || "Unnamed"}</span>
-                                                                        <span className="text-xs text-muted-foreground">{c.email}</span>
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))
-                                                        )}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
+                                    <Select value={contactId} onValueChange={setContactId}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select a contact" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {eligibleContacts.length === 0 ? (
+                                                <div className="p-2 text-sm text-center text-muted-foreground">No eligible submissions</div>
+                                            ) : (
+                                                eligibleContacts.map((c) => (
+                                                    <SelectItem key={c.id} value={c.id}>
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="font-medium">{c.name || "Unnamed"}</span>
+                                                            <span className="text-xs text-muted-foreground">{c.email}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))
+                                            )}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 {/* Single Contact Preview Card */}
-                                {contactId && (
-                                    <div className="flex items-center gap-4 mt-4 p-4 border rounded-lg bg-muted/20">
-                                        <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                                            {(selectedContactLabel.charAt(0) || "?").toUpperCase()}
+                                {contactId && (() => {
+                                    const c = eligibleContacts.find(x => x.id === contactId)
+                                    if (!c) return null
+                                    return (
+                                        <div className="flex items-center gap-4 mt-4 p-4 border rounded-lg bg-muted/20">
+                                            <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                                                {(c.name?.charAt(0) || "?").toUpperCase()}
+                                            </div>
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold truncate">{c.name || "Unnamed"}</span>
+                                                <span className="text-xs text-muted-foreground truncate">
+                                                    {c.email || "—"}
+                                                </span>
+                                            </div>
+                                            <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">Eligible</Badge>
                                         </div>
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className="font-bold truncate">{selectedContactLabel}</span>
-                                            <span className="text-xs text-muted-foreground truncate">
-                                                {allContacts.find((c: any) => c.id === contactId)?.email || "—"} • {allContacts.find((c: any) => c.id === contactId)?.phone || "—"}
-                                            </span>
-                                        </div>
-                                        {/* Submission status hint */}
-                                        {submissionIdByContactId?.[contactId] ? (
-                                            <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">Has submission</Badge>
-                                        ) : (
-                                            <Badge variant="outline" className="ml-auto text-[10px] shrink-0 text-muted-foreground">No submission</Badge>
-                                        )}
-                                    </div>
-                                )}
+                                    )
+                                })()}
                             </>
                         ) : (
                             <div className="flex flex-col h-full">
@@ -323,9 +304,8 @@ export function IssueCertificateDialog({
                                     <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => setSelectedContacts([])}>Deselect All</Button>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto border rounded-md mt-2 flex-1">
-                                    {isLoadingContacts && <div className="p-4 text-center text-sm text-muted-foreground">Loading contacts...</div>}
-                                    {(!isLoadingContacts && bulkFilteredContacts.length === 0) && (
-                                        <div className="p-4 text-center text-sm text-muted-foreground">No matching contacts...</div>
+                                    {bulkFilteredContacts.length === 0 && (
+                                        <div className="p-4 text-center text-sm text-muted-foreground">No eligible contacts found...</div>
                                     )}
                                     {bulkFilteredContacts.map((c: any) => {
                                         const hasSubmission = !!submissionIdByContactId?.[c.id]

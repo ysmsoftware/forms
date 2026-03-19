@@ -5,22 +5,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    PieChart,
-    Pie,
-    Cell,
-} from "recharts"
+import dynamic from "next/dynamic"
+
+const SubmissionsChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.SubmissionsChart),
+    { ssr: false }
+)
+const ConversionFunnelChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.ConversionFunnelChart),
+    { ssr: false }
+)
+const TopEventsChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.TopEventsChart),
+    { ssr: false }
+)
+
+
 import { TrendingUp, Users, FileText, DollarSign, MousePointer, RefreshCw } from "lucide-react"
-import { format } from "date-fns"
 import { toast } from "sonner"
 import { getEvents } from "@/lib/api/events"
 import {
@@ -299,35 +300,7 @@ export default function Analytics() {
                                 <Skeleton className="w-full h-full rounded-lg" />
                             </div>
                         ) : timeline.length > 0 && timeline.some(p => p.submitted > 0) ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={timeline}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="date"
-                                        tickFormatter={(v) => format(new Date(v + "T00:00:00"), "MMM dd")}
-                                        interval="preserveStartEnd"
-                                    />
-                                    <YAxis allowDecimals={false} />
-                                    <Tooltip labelFormatter={(v) => format(new Date(v + "T00:00:00"), "MMM dd, yyyy")} />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="submitted"
-                                        name="Submissions"
-                                        stroke="#8884d8"
-                                        strokeWidth={2}
-                                        dot={false}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="visits"
-                                        name="Visits"
-                                        stroke="#82ca9d"
-                                        strokeWidth={1.5}
-                                        dot={false}
-                                        strokeDasharray="4 2"
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <SubmissionsChart timeline={timeline} />
                         ) : (
                             <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                                 No submissions in this period
@@ -344,25 +317,7 @@ export default function Analytics() {
                             <CardDescription>User journey from visit to submission</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <PieChart>
-                                    <Pie
-                                        data={conversionFunnel}
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={100}
-                                        dataKey="value"
-                                        label={({ name, value, percent = 0 }) =>
-                                            `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
-                                        }
-                                    >
-                                        {conversionFunnel.map((entry, i) => (
-                                            <Cell key={i} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <ConversionFunnelChart data={conversionFunnel} />
                         </CardContent>
                     </Card>
                 ) : (
@@ -376,15 +331,7 @@ export default function Analytics() {
                             {isLoading ? (
                                 <Skeleton className="w-full h-[300px] rounded-lg" />
                             ) : eventSubmissions.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={eventSubmissions} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" allowDecimals={false} />
-                                        <YAxis dataKey="name" type="category" width={160} tick={{ fontSize: 12 }} />
-                                        <Tooltip />
-                                        <Bar dataKey="submissions" name="Submissions" fill="#8884d8" radius={[0, 4, 4, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <TopEventsChart data={eventSubmissions} />
                             ) : (
                                 <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                                     No events yet

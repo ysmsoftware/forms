@@ -7,21 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    PieChart,
-    Pie,
-    Cell,
-    Legend
-} from "recharts"
+import dynamic from "next/dynamic"
+
+const EventFunnelChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then(mod => mod.EventFunnelChart),
+    { ssr: false }
+)
+const DailyBarChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then(mod => mod.DailyBarChart),
+    { ssr: false }
+)
+const TrendLineChart = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then(mod => mod.TrendLineChart),
+    { ssr: false }
+)
 import { Download, Users, MousePointer, CheckCircle, DollarSign, TrendingUp, Eye, ArrowLeft } from "lucide-react"
 import { useEvent } from "@/lib/query/hooks/useEvents"
 import { useEventAnalytics, useDailyAnalytics } from "@/lib/query/hooks/useAnalytics"
@@ -145,41 +144,13 @@ export default function EventAnalytics() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                             <h4 className="text-sm font-medium mb-4">Conversion Funnel</h4>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <PieChart>
-                                    <Pie
-                                        data={conversionData}
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                        label={({ name, value }) => `${name}: ${value}`}
-                                    >
-                                        {conversionData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <EventFunnelChart data={conversionData} />
                         </div>
                         <div>
                             <h4 className="text-sm font-medium mb-1">Daily Interactions</h4>
                             <p className="text-xs text-muted-foreground mb-3">Last 30 days</p>
                             {chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="date" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Bar dataKey="visitors" fill="#8884d8" name="Visitors" />
-                                        <Bar dataKey="started" fill="#82ca9d" name="Started" />
-                                        <Bar dataKey="submitted" fill="#ffc658" name="Submitted" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <DailyBarChart data={chartData} />
                             ) : (
                                 <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                     No daily data available yet
@@ -198,48 +169,7 @@ export default function EventAnalytics() {
                 </CardHeader>
                 <CardContent>
                     {chartData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={400}>
-                            <LineChart
-                                data={chartData}
-                                margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                <Tooltip
-                                    cursor={{ stroke: "#888", strokeWidth: 1, strokeDasharray: "4 4" }}
-                                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                                />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="visitors"
-                                    stroke="#8884d8"
-                                    strokeWidth={2}
-                                    name="Visitors"
-                                    dot={{ r: 3, fill: "#8884d8" }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="started"
-                                    stroke="#82ca9d"
-                                    strokeWidth={2}
-                                    name="Started"
-                                    dot={{ r: 3, fill: "#82ca9d" }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="submitted"
-                                    stroke="#ffc658"
-                                    strokeWidth={2}
-                                    name="Submitted"
-                                    dot={{ r: 3, fill: "#ffc658" }}
-                                    activeDot={{ r: 6 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <TrendLineChart data={chartData} />
                     ) : (
                         <div className="flex items-center justify-center h-[400px] text-muted-foreground">
                             No daily data available yet

@@ -17,18 +17,21 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { Send, Mail, Phone, MessageSquare, RefreshCw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react"
 import { SendMessageDialog } from "@/components/send-message-dialog"
 import { formatDistanceToNow } from "date-fns"
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts"
+import dynamic from "next/dynamic"
+
+const DeliveryDonut = dynamic(
+    () => import("@/components/analytics/AnalyticsCharts").then(mod => mod.DeliveryDonut),
+    { ssr: false }
+)
 
 const toTitleCase = (s: string) =>
     s.split("_").map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(" ")
 
 export default function MessagesPage() {
-    const { toast } = useToast()
-
     const [searchTerm, setSearchTerm] = useState("")
     const [typeFilter, setTypeFilter] = useState<"ALL" | MessageType>("ALL")
     const [statusFilter, setStatusFilter] = useState("ALL")
@@ -124,8 +127,8 @@ export default function MessagesPage() {
             }
         }
         setRetryingAll(false)
-        if (failCount === 0) toast({ description: `${successCount} failed message${successCount !== 1 ? "s" : ""} retried successfully` })
-        else toast({ variant: "destructive", description: `${successCount} retried, ${failCount} still failing` })
+        if (failCount === 0) toast(`${successCount} failed message${successCount !== 1 ? "s" : ""} retried successfully`)
+        else toast.error(`${successCount} retried, ${failCount} still failing`)
     }
 
     return (
@@ -168,16 +171,11 @@ export default function MessagesPage() {
                                 {/* Delivery Rate donut — keep existing Recharts PieChart here, inline */}
                                 <div className="flex items-center gap-3 ml-auto">
                                     <div className="w-12 h-12">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie data={[{ name: "Sent", value: stats.sent }, { name: "Failed", value: stats.failed }, { name: "Queued", value: stats.queued }]} cx="50%" cy="50%" innerRadius={14} outerRadius={22} dataKey="value" strokeWidth={0}>
-                                                    <Cell fill="#22c55e" />
-                                                    <Cell fill="#ef4444" />
-                                                    <Cell fill="#eab308" />
-                                                </Pie>
-                                                <RechartsTooltip contentStyle={{ fontSize: 11, padding: "4px 8px" }} formatter={(val: any, name: any) => [`${val}`, name]} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
+                                        <DeliveryDonut data={[
+                                            { name: "Sent", value: stats.sent },
+                                            { name: "Failed", value: stats.failed },
+                                            { name: "Queued", value: stats.queued },
+                                        ]} />
                                     </div>
                                     <div>
                                         <p className="text-2xl font-bold leading-none">{stats.total > 0 ? Math.round((stats.sent / stats.total) * 100) : 0}%</p>
@@ -364,9 +362,9 @@ export default function MessagesPage() {
                                                                     type: m.type,
                                                                     template: m.template as MessageTemplate,
                                                                 })
-                                                                toast({ description: `Message resent to ${m.contact?.name ?? "contact"}` })
+                                                                toast.success("Retry command sent")
                                                             } catch (err: any) {
-                                                                toast({ variant: "destructive", description: err.message ?? "Failed to resend" })
+                                                                toast.error("Failed to retry message")
                                                             } finally {
                                                                 setResendingId(null)
                                                             }
