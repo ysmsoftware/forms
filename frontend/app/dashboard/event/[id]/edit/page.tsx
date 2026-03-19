@@ -53,6 +53,7 @@ import { getFormByEventId, updateForm, publishForm, createForm } from "@/lib/api
 import type { Event, Form, FormFieldInput } from "@/lib/types/api"
 import { getStatusColor } from "@/lib/event-utils"
 import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/lib/hooks/useFormBuilder"
+import { PatternBuilder } from "@/components/pattern-builder"
 
 
 const TEMPLATE_TYPES = ["COMPLETION", "ACHIEVEMENT", "WORKSHOP", "INTERNSHIP", "APPOINTMENT"] as const
@@ -611,21 +612,16 @@ export default function EditEventPage() {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs">Pattern (regex)</Label>
-                                                        <Input
-                                                            placeholder="e.g. ^[A-Za-z]+$"
-                                                            value={selectedField.validation?.pattern ?? ""}
-                                                            onChange={(e) => updateField(selectedField.id, {
-                                                                validation: {
-                                                                    ...selectedField.validation,
-                                                                    pattern: e.target.value || undefined
-                                                                }
-                                                            })}
-                                                            disabled={event?.status === "CLOSED"}
-                                                            className="h-8 text-sm font-mono"
-                                                        />
-                                                    </div>
+                                                    <PatternBuilder
+                                                        value={selectedField.validation?.pattern}
+                                                        onChange={(pattern) => updateField(selectedField.id, {
+                                                            validation: {
+                                                                ...selectedField.validation,
+                                                                pattern,
+                                                            }
+                                                        })}
+                                                        disabled={event?.status === "CLOSED"}
+                                                    />
                                                 </div>
                                             )}
 

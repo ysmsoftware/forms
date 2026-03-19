@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { FormPreviewModal } from "@/components/form-preview-modal"
 import { PublishSuccessModal } from "@/components/publish-success-modal"
+import { PatternBuilder } from "@/components/pattern-builder"
 import { toast } from "sonner"
 import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/lib/hooks/useFormBuilder"
 
@@ -656,20 +657,15 @@ export default function CreateEvent() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Pattern (regex)</Label>
-                                            <Input
-                                                placeholder="e.g. ^[A-Za-z]+$"
-                                                value={selectedField.validation?.pattern ?? ""}
-                                                onChange={(e) => updateField(selectedField.id, {
-                                                    validation: {
-                                                        ...selectedField.validation,
-                                                        pattern: e.target.value || undefined
-                                                    }
-                                                })}
-                                                className="h-8 text-sm font-mono"
-                                            />
-                                        </div>
+                                        <PatternBuilder
+                                            value={selectedField.validation?.pattern}
+                                            onChange={(pattern) => updateField(selectedField.id, {
+                                                validation: {
+                                                    ...selectedField.validation,
+                                                    pattern,
+                                                }
+                                            })}
+                                        />
                                     </div>
                                 )}
 
