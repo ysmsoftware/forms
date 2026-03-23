@@ -22,6 +22,17 @@ export interface AdminSubmissionResponseDTO {
     phone?: string;
   };
 
+  payment?: {
+    id: string;
+    status: string;
+    amount: number;
+    currency: string;
+    razorpayPaymentId: string | null;
+    paidAt: Date | null;
+    webhookConfirmed: boolean;
+    attempts: number;
+  };
+
   answers: Array<{
     fieldId: string;
     fieldKey: string;

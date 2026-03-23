@@ -41,7 +41,9 @@ export const globalErrorHandler = (
         });
     }
 
-    logger.error(`${err.message} - [${method} ${originalUrl}] (ReqID: ${requestId})`, { stack: err.stack });
+    // Handle non-Error thrown objects (e.g. Razorpay SDK rejects with plain objects)
+    const message = err?.message ?? (typeof err === "object" ? JSON.stringify(err) : String(err))
+    logger.error(`${message} - [${method} ${originalUrl}] (ReqID: ${requestId})`, { stack: err?.stack, raw: err });
     return res.status(500).json({
         success: false,
         message: "Internal server error",

@@ -5,6 +5,13 @@ import type {
     SubmitFormInput,
 } from "../types/api";
 
+export interface SubmitFormResult {
+    submissionId: string
+    status: string
+    submittedAt: string
+
+}
+
 // ── Public visitor flow ──────────────────────────────────
 
 export async function loadPublicForm(slug: string): Promise<any> {
@@ -51,7 +58,7 @@ export async function getDraft(slug: string, visitorUuid: string): Promise<any> 
 export async function submitForm(
     slug: string,
     data: SubmitFormInput
-): Promise<FormSubmission> {
+): Promise<SubmitFormResult> {
     return publicClient(`/submissions/${slug}/submit`, {
         method: "POST",
         body: JSON.stringify({

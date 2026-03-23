@@ -11,7 +11,17 @@ import { ContactEventSource } from "@prisma/client";
 
 export type SubmissionWithAnswers = FormSubmission & {
     answers: SubmissionAnswer[];
-    contact: Contact | null
+    contact: Contact | null;
+    payment?: {
+        id: string;
+        status: string;
+        amount: number;
+        currency: string;
+        razorpayPaymentId: string | null;
+        paidAt: Date | null;
+        webhookConfirmed: boolean;
+        attempts: number;
+    } | null;
 };
 
 
@@ -209,8 +219,20 @@ export class SubmissionsRepository implements ISubmissionRepository {
             include: {
                 answers: { orderBy: { fieldKey: "asc" } },
                 contact: true,
+                payment: {
+                    select: {
+                        id: true,
+                        status: true,
+                        amount: true,
+                        currency: true,
+                        razorpayPaymentId: true,
+                        paidAt: true,
+                        webhookConfirmed: true,
+                        attempts: true,
+                    }
+                },
             }
-        })
+        }) as Promise<SubmissionWithAnswers | null>
     };
 
     async findSubmissionsByEvent(eventId: string, options?: { status?: SubmissionStatus; limit?: number; offset?: number; fromDate?: Date; toDate?: Date; }): Promise<{ items: SubmissionWithAnswers[], totalCount: number }> {
@@ -238,6 +260,18 @@ export class SubmissionsRepository implements ISubmissionRepository {
                         orderBy: { fieldKey: "asc" }
                     },
                     contact: true,
+                    payment: {
+                        select: {
+                            id: true,
+                            status: true,
+                            amount: true,
+                            currency: true,
+                            razorpayPaymentId: true,
+                            paidAt: true,
+                            webhookConfirmed: true,
+                            attempts: true,
+                        }
+                    },
                 }
             }),
             prisma.formSubmission.count({ where })

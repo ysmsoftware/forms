@@ -301,6 +301,19 @@ export class SubmissionService {
             };
         }
 
+        if (submission.payment) {
+            response.payment = {
+                id: submission.payment.id,
+                status: submission.payment.status,
+                amount: submission.payment.amount,
+                currency: submission.payment.currency,
+                razorpayPaymentId: submission.payment.razorpayPaymentId,
+                paidAt: submission.payment.paidAt,
+                webhookConfirmed: submission.payment.webhookConfirmed,
+                attempts: submission.payment.attempts,
+            };
+        }
+
         return response;
     }
 
@@ -353,6 +366,19 @@ export class SubmissionService {
                     ...(s.contact.name && { name: s.contact.name }),
                     ...(s.contact.email && { email: s.contact.email }),
                     ...(s.contact.phone && { phone: s.contact.phone }),
+                };
+            }
+
+            if (s.payment) {
+                dto.payment = {
+                    id: s.payment.id,
+                    status: s.payment.status,
+                    amount: s.payment.amount,
+                    currency: s.payment.currency,
+                    razorpayPaymentId: s.payment.razorpayPaymentId,
+                    paidAt: s.payment.paidAt,
+                    webhookConfirmed: s.payment.webhookConfirmed,
+                    attempts: s.payment.attempts,
                 };
             }
 

@@ -181,7 +181,10 @@ export class FormRepositories implements IFormRepository {
     async findBySlug(slug: string): Promise<PublicFormResult | null> {
         const event = await prisma.event.findUnique({
             where: { slug },
-            include: { form: { include: this.includeDetails } },
+            include: {
+                form: { include: this.includeDetails },
+                paymentConfig: true,   // ← required: paymentConfig is a relation, not a scalar
+            },
         });
 
         if (!event || !event.form) return null;

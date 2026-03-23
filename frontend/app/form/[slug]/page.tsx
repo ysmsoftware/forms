@@ -13,7 +13,9 @@ import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
+import { useRazorpay } from "@/lib/hooks/useRazorpay"
+import type { SubmitFormResult } from "@/lib/api/submissions"
 import { CreditCard, CheckCircle, Clock, Shield, FormInput, Loader2, AlertCircle, XCircle } from "lucide-react"
 import {
     loadPublicForm,
@@ -28,19 +30,27 @@ export default function PublicForm() {
     const params = useParams()
     const slug = params.slug as string
 
-    const [pageState, setPageState] = useState<"LOADING" | "READY" | "CLOSED" | "SUBMITTED" | "ERROR">("LOADING")
+    const [pageState, setPageState] = useState<"LOADING" | "READY" | "CLOSED" | "AWAITING_PAYMENT" | "PAYMENT_SUCCESS" | "SUBMITTED" | "ERROR">("LOADING")
     const [form, setForm] = useState<any>(null)
     const [visitorUuid, setVisitorUuid] = useState<string>("")
     const [formValues, setFormValues] = useState<Record<string, any>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "completed" | "failed">("pending")
     const [currentStep, setCurrentStep] = useState(0)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-    const { toast } = useToast()
+    const [submissionId, setSubmissionId] = useState<string | null>(null)
+    const { state: paymentState, error: paymentError, initiatePayment, retryPayment } = useRazorpay()
 
     // Refs to guarantee visit and start only fire ONCE
     const visitFiredRef = useRef(false)
     const startFiredRef = useRef(false)
+
+    // Auto-transition: payment confirmed → success screen
+    // MUST be declared here — before any conditional early returns (Rules of Hooks)
+    useEffect(() => {
+        if (pageState === "AWAITING_PAYMENT" && paymentState === "success") {
+            setPageState("PAYMENT_SUCCESS")
+        }
+    }, [pageState, paymentState])
 
 
     function getOrCreateVisitorUuid(): string {
@@ -117,18 +127,7 @@ export default function PublicForm() {
         }
     }
 
-    const handlePayment = async () => {
-        setPaymentStatus("processing")
 
-        // Simulate payment processing (will be replaced by real payment gateway)
-        setTimeout(() => {
-            setPaymentStatus("completed")
-            toast({
-                title: "Payment Successful",
-                description: "Your payment has been processed successfully.",
-            })
-        }, 2000)
-    }
 
     function validateFields(fieldsToValidate: FormField[]): Record<string, string> {
         const errors: Record<string, string> = {}
@@ -208,10 +207,7 @@ export default function PublicForm() {
         setFieldErrors(errors)
 
         if (Object.keys(errors).length > 0) {
-            toast({
-                title: "Please fix the errors before continuing.",
-                variant: "destructive",
-            })
+            toast.error("Please fix the errors before continuing.")
             return
         }
 
@@ -240,19 +236,11 @@ export default function PublicForm() {
         setFieldErrors(errors)
 
         if (Object.keys(errors).length > 0) {
-            toast({
-                title: "Please fix the errors before submitting.",
-                variant: "destructive",
-            })
+            toast.error("Please fix the errors before submitting.")
             return
         }
 
         setIsSubmitting(true)
-
-        // Handle payment if required
-        if (enablePayment && paymentStatus !== "completed") {
-            await handlePayment()
-        }
 
         try {
             const freshSteps2: any[] = form?.form?.steps ?? []
@@ -287,7 +275,7 @@ export default function PublicForm() {
 
             // Guard: if no answers after filtering, show error
             if (answers.length === 0) {
-                toast({ title: "Please fill in at least one field", variant: "destructive" })
+                toast.error("Please fill in at least one field.")
                 setIsSubmitting(false)
                 return
             }
@@ -310,10 +298,15 @@ export default function PublicForm() {
                 },
             }
 
-            await submitForm(slug, payload)
-            setPageState("SUBMITTED")
+            const result: SubmitFormResult = await submitForm(slug, payload)
+            setSubmissionId(result.submissionId)
+            if (enablePayment) {
+                setPageState("AWAITING_PAYMENT")
+            } else {
+                setPageState("SUBMITTED")
+            }
         } catch (err: any) {
-            toast({ title: "Submission Failed", description: err.message, variant: "destructive" })
+            toast.error("Submission Failed", { description: err.message })
         } finally {
             setIsSubmitting(false)
         }
@@ -461,6 +454,7 @@ export default function PublicForm() {
     }
 
     // ── CLOSED state (DRAFT or CLOSED event) ─────────
+    // NOTE: useEffect below must stay here — before all conditional early returns
     if (pageState === "CLOSED") {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -487,6 +481,135 @@ export default function PublicForm() {
         )
     }
 
+    // ── AWAITING_PAYMENT state ──────────────────────────────
+    if (pageState === "AWAITING_PAYMENT") {
+        const isProcessing = ["creating_order", "checkout_open", "verifying", "polling"].includes(paymentState)
+        const isFailed = paymentState === "failed"
+        const isCancelled = paymentState === "cancelled"
+
+        const paymentConfig = {
+            amount: paymentAmount,
+            currency: paymentCurrency,
+            eventTitle,
+        }
+
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            <CreditCard className="h-6 w-6 text-primary" />
+                        </div>
+                        <CardTitle className="text-2xl">Complete Payment</CardTitle>
+                        <CardDescription>
+                            Your registration for <strong>{eventTitle}</strong> is saved.
+                            Complete payment to confirm your spot.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                            <span className="text-sm font-medium text-muted-foreground">
+                                {paymentDescription || "Registration Fee"}
+                            </span>
+                            <span className="text-xl font-bold">
+                                {paymentCurrency} {Number(paymentAmount).toLocaleString("en-IN")}
+                            </span>
+                        </div>
+
+                        {paymentState === "creating_order" && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                                Preparing your payment...
+                            </div>
+                        )}
+                        {(paymentState === "verifying" || paymentState === "polling") && (
+                            <div className="flex items-center gap-2 text-sm p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-blue-600" />
+                                <span className="text-blue-700">
+                                    {paymentState === "verifying" ? "Verifying payment..." : "Confirming with bank..."}
+                                </span>
+                            </div>
+                        )}
+                        {isFailed && (
+                            <div className="flex items-start gap-2 text-sm p-3 bg-red-50 rounded-lg border border-red-200">
+                                <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                                <span className="text-red-700">{paymentError ?? "Payment failed. Please try again."}</span>
+                            </div>
+                        )}
+                        {isCancelled && (
+                            <div className="flex items-start gap-2 text-sm p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                                <span className="text-yellow-700">Payment cancelled. You can try again below.</span>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Shield className="h-3.5 w-3.5 shrink-0" />
+                            Secured by Razorpay. Your registration is saved regardless of payment status.
+                        </div>
+
+                        <Button
+                            className="w-full"
+                            size="lg"
+                            disabled={isProcessing}
+                            onClick={() => {
+                                if (!submissionId) return
+                                if (isFailed) {
+                                    retryPayment(submissionId, paymentConfig)
+                                } else {
+                                    initiatePayment(submissionId, paymentConfig)
+                                }
+                            }}
+                        >
+                            {isProcessing ? (
+                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                            ) : isFailed ? (
+                                <><CreditCard className="mr-2 h-4 w-4" />Retry Payment</>
+                            ) : (
+                                <><CreditCard className="mr-2 h-4 w-4" />Pay {paymentCurrency} {Number(paymentAmount).toLocaleString("en-IN")}</>
+                            )}
+                        </Button>
+
+                        <p className="text-xs text-center text-muted-foreground">
+                            Your registration is already recorded. Payment confirms your spot.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    // ── PAYMENT_SUCCESS state ──────────────────────────────
+    if (pageState === "PAYMENT_SUCCESS") {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                        </div>
+                        <CardTitle className="text-2xl">Registration Confirmed!</CardTitle>
+                        <CardDescription>Payment received. You're all set.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-center space-y-4">
+                        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-center gap-2 text-green-700 mb-1">
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-sm font-medium">Payment Successful</span>
+                            </div>
+                            <p className="text-sm text-green-600">
+                                {paymentCurrency} {Number(paymentAmount).toLocaleString("en-IN")} paid for {eventTitle}
+                            </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            A confirmation will be sent to you from YSM Infosolutions shortly.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
     // ── SUBMITTED state ────────────────────────────────
     if (pageState === "SUBMITTED") {
         return (
@@ -503,17 +626,6 @@ export default function PublicForm() {
                         <p className="text-sm text-muted-foreground">
                             We've received your submission for <strong>{eventTitle}</strong>. Our team will contact you soon with further details.
                         </p>
-                        {enablePayment && paymentStatus === "completed" && (
-                            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                <div className="flex items-center justify-center space-x-2 text-green-700">
-                                    <CheckCircle className="h-4 w-4" />
-                                    <span className="text-sm font-medium">Payment Confirmed</span>
-                                </div>
-                                <p className="text-xs text-green-600 mt-1">
-                                    {paymentCurrency} {paymentAmount} - {paymentDescription}
-                                </p>
-                            </div>
-                        )}
                         <div className="pt-4">
                             <Button variant="outline" className="w-full" onClick={() => window.location.reload()}>
                                 Submit another response
@@ -600,48 +712,7 @@ export default function PublicForm() {
                                             </div>
                                         ))}
 
-                                        {enablePayment && (
-                                            <>
-                                                <Separator />
-                                                <div className="space-y-4">
-                                                    <div className="flex items-center space-x-2">
-                                                        <CreditCard className="h-5 w-5 text-primary" />
-                                                        <h3 className="text-lg font-semibold">Payment Required</h3>
-                                                    </div>
 
-                                                    <div className="p-4 bg-muted/50 rounded-lg">
-                                                        <div className="flex justify-between items-center mb-2">
-                                                            <span className="font-medium">{paymentDescription}</span>
-                                                            <span className="text-2xl font-bold">
-                                                                {paymentCurrency} {paymentAmount}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                                            <Shield className="h-4 w-4" />
-                                                            <span>Secure payment processing</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {paymentStatus === "processing" && (
-                                                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                                            <div className="flex items-center space-x-2 text-blue-700">
-                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
-                                                                <span className="text-sm font-medium">Processing payment...</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {paymentStatus === "completed" && (
-                                                        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                                            <div className="flex items-center space-x-2 text-green-700">
-                                                                <CheckCircle className="h-4 w-4" />
-                                                                <span className="text-sm font-medium">Payment completed successfully</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
 
                                         <div className="pt-6 flex items-center justify-between gap-4">
                                             {isMultiStep && (
@@ -658,16 +729,10 @@ export default function PublicForm() {
                                                     {isSubmitting ? (
                                                         <>
                                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                                            {enablePayment && paymentStatus !== "completed"
-                                                                ? "Processing Payment..."
-                                                                : "Submitting Form..."}
+                                                            Submitting...
                                                         </>
                                                     ) : (
-                                                        <>
-                                                            {enablePayment && paymentStatus !== "completed"
-                                                                ? `Pay ${paymentCurrency} ${paymentAmount} & Submit`
-                                                                : "Submit Registration"}
-                                                        </>
+                                                        "Submit Registration"
                                                     )}
                                                 </Button>
                                             )}
@@ -693,7 +758,7 @@ export default function PublicForm() {
                                         <div>
                                             <h4 className="font-medium text-sm text-muted-foreground">Registration Fee</h4>
                                             <p className="font-medium text-lg">
-                                                {paymentCurrency} {paymentAmount}
+                                                {paymentCurrency} {paymentAmount ? Number(paymentAmount).toLocaleString("en-IN") : "—"}
                                             </p>
                                         </div>
                                     )}
