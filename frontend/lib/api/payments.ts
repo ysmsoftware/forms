@@ -9,13 +9,21 @@ export interface CreateOrderResult {
 }
 
 export interface PaymentStatusResult {
-    payment: {
-        id: string
-        status: "CREATED" | "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED" | "REFUNDED"
-        amount: number
-        webhookConfirmed: boolean
-        razorpayPaymentId: string | null
-        paidAt: string | null
+    success: boolean,
+    data: {
+        payment: {
+            id: string
+            eventId: string,
+            submissionId: string,
+            amount: number
+            status: "CREATED" | "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED" | "REFUNDED"
+            webhookConfirmed: boolean
+            razorpayPaymentId: string | null
+            paidAt: string | null
+            failureReason: string | null
+        },
+        eventId: string,
+        contactId: string,
     }
 }
 

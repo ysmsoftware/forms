@@ -286,8 +286,8 @@ export function SubmissionTable({
                                         )}
 
                                         <TableCell>
-                                            <Badge className={statusColor[sub.status.toLowerCase()] ?? "bg-gray-100 text-gray-800 border-gray-200"}>
-                                                {sub.status.charAt(0) + sub.status.slice(1).toLowerCase()}
+                                            <Badge className={statusColor[sub.status.toUpperCase()] ?? "bg-gray-100 text-gray-800 border-gray-200"}>
+                                                {sub.status.charAt(0) + sub.status.slice(1).toUpperCase()}
                                             </Badge>
                                         </TableCell>
 
