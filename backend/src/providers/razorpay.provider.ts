@@ -8,12 +8,14 @@ export class RazorpayProvider {
     private keyId: string;
 
     constructor() {
-        this.keyId = process.env.RAZORPAY_KEY_ID!;
-        this.webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+        // .trim() is critical — copy-pasting secrets into .env files
+        // often introduces trailing newlines that silently break HMAC verification
+        this.keyId = (process.env.RAZORPAY_KEY_ID ?? "").trim();
+        this.webhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET ?? "").trim();
 
         this.client = new Razorpay({
             key_id: this.keyId,
-            key_secret: process.env.RAZORPAY_KEY_SECRET!,
+            key_secret: (process.env.RAZORPAY_KEY_SECRET ?? "").trim(),
         });
     }
 

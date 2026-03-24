@@ -92,9 +92,6 @@ export class PaymentService {
             }
         }
 
-        // Create Razorpay order
-        // Receipt must be <= 40 chars (Razorpay limit)
-        // UUID is 36 chars — take first 8 chars as a short suffix
         const receiptSuffix = params.submissionId.replace(/-/g, "").slice(0, 30)
         const order = await this.razorpay.createOrder({
             amount,
@@ -145,11 +142,11 @@ export class PaymentService {
             }
 
             if (payment.status === PaymentStatus.SUCCESS) {
-                return; // already completed
+                return;
             }
 
             if (payment.status === PaymentStatus.FAILED) {
-                return; // webhook will finalize retry
+                return;
             }
 
             await this.paymentRepo.markPending(params.razorpayOrderId);
@@ -176,13 +173,19 @@ export class PaymentService {
             throw new BadRequestError("Invalid webhook signature");
         }
 
-        const event = payload.event;
+        const parsed = Buffer.isBuffer(payload)
+            ? JSON.parse(payload.toString("utf8"))
+            : typeof payload === "string"
+                ? JSON.parse(payload)
+                : payload
+
+        const event = parsed.event;
         // only handle payment events
         if (!event?.startsWith("payment.")) {
             return;
         }
 
-        const paymentEntity = payload.payload?.payment?.entity;
+        const paymentEntity = parsed.payload?.payment?.entity;
         if (!paymentEntity) {
             return;
         }
@@ -206,8 +209,6 @@ export class PaymentService {
             return;
         }
 
-
-
         switch (event) {
             case "payment.captured":
                 if (payment.status === "SUCCESS") { // idempotent check
@@ -222,7 +223,7 @@ export class PaymentService {
                     razorpayPaymentId: paymentEntity.id,
                     paidAt: new Date(paymentEntity.created_at * 1000),
                     metadata: {
-                        event: payload.event,
+                        event: parsed.event,
                         paymentId: paymentEntity.id,
                         method: paymentEntity.method,
                         email: paymentEntity.email,
@@ -239,7 +240,6 @@ export class PaymentService {
                     razorpayOrderId,
                     paymentEntity.error_description || "Payment failed"
                 );
-
                 break;
 
             default:

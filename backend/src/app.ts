@@ -17,6 +17,10 @@ import { redis } from './config/redis';
 dotenv.config();
 const app = express();
 
+// Trust the first proxy (Nginx on VPS) — required for correct IP resolution
+// and to prevent express-rate-limit ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set("trust proxy", 1);
+
 // Security headers — disable CSP and crossOriginResourcePolicy so that
 // static files served from /storage are loadable by the frontend origin.
 app.use(helmet({
