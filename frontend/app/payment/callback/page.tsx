@@ -68,7 +68,7 @@ function PaymentCallbackContent() {
                 attempts++
                 try {
                     const result = await getPaymentStatus(paymentId)
-                    const status = result.payment.status
+                    const status = result.data.payment.status
 
                     if (status === "SUCCESS") {
                         clearInterval(interval)
@@ -78,7 +78,7 @@ function PaymentCallbackContent() {
                     if (status === "FAILED" || status === "CANCELLED") {
                         clearInterval(interval)
                         setState("failed")
-                        setMessage("Payment was not successful.")
+                        setMessage(result.data.payment.failureReason ?? "Payment was not successful.")
                         return
                     }
                     if (attempts >= maxAttempts) {
