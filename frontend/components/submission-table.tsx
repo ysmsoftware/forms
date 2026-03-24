@@ -294,8 +294,8 @@ export function SubmissionTable({
                                         {paymentEnabled && (
                                             <TableCell>
                                                 {sub.payment ? (
-                                                    <Badge variant={sub.payment.status.toLowerCase() === "completed" ? "default" : "secondary"} className={sub.payment.status.toLowerCase() === "completed" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
-                                                        {sub.payment.status.toLowerCase() === "completed" ? "Paid" : "Pending"}
+                                                    <Badge variant={sub.payment.status.toLowerCase() === "SUCCESS" ? "default" : "secondary"} className={sub.payment.status.toLowerCase() === "SUCCESS" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
+                                                        {sub.payment.status.toLowerCase() === "SUCCESS" ? "Paid" : "Pending"}
                                                     </Badge>
                                                 ) : (
                                                     <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-100">—</Badge>
