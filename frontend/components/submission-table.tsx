@@ -141,8 +141,8 @@ export function SubmissionTable({
                         <CardContent className="text-sm">
                             {selected.payment ? (
                                 <div className="flex items-center gap-2">
-                                    <Badge variant={selected.payment.status.toLowerCase() === "completed" ? "default" : "secondary"} className={selected.payment.status.toLowerCase() === "completed" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
-                                        {selected.payment.status.toLowerCase() === "completed" ? "Paid" : "Pending"}
+                                    <Badge variant={selected.payment.status.toLowerCase() === "SUCCESS" ? "default" : "secondary"} className={selected.payment.status.toLowerCase() === "completed" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
+                                        {selected.payment.status.toLowerCase() === "SUCCESS" ? "Paid" : "Pending"}
                                     </Badge>
                                     {selected.payment.amount && <span>₹{selected.payment.amount / 100}</span>}
                                 </div>
