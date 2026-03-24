@@ -141,8 +141,8 @@ export function SubmissionTable({
                         <CardContent className="text-sm">
                             {selected.payment ? (
                                 <div className="flex items-center gap-2">
-                                    <Badge variant={selected.payment.status.toLowerCase() === "SUCCESS" ? "default" : "secondary"} className={selected.payment.status.toLowerCase() === "completed" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
-                                        {selected.payment.status.toLowerCase() === "SUCCESS" ? "Paid" : "Pending"}
+                                    <Badge variant={selected.payment.status.toUpperCase() === "SUCCESS" ? "default" : "secondary"} className={selected.payment.status.toUpperCase() === "SUCCESS" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
+                                        {selected.payment.status.toUpperCase() === "SUCCESS" ? "Paid" : "Pending"}
                                     </Badge>
                                     {selected.payment.amount && <span>₹{selected.payment.amount / 100}</span>}
                                 </div>
@@ -294,8 +294,8 @@ export function SubmissionTable({
                                         {paymentEnabled && (
                                             <TableCell>
                                                 {sub.payment ? (
-                                                    <Badge variant={sub.payment.status.toLowerCase() === "SUCCESS" ? "default" : "secondary"} className={sub.payment.status.toLowerCase() === "SUCCESS" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
-                                                        {sub.payment.status.toLowerCase() === "SUCCESS" ? "Paid" : "Pending"}
+                                                    <Badge variant={sub.payment.status.toUpperCase() === "SUCCESS" ? "default" : "secondary"} className={sub.payment.status.toUpperCase() === "SUCCESS" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"}>
+                                                        {sub.payment.status.toUpperCase() === "SUCCESS" ? "Paid" : "Pending"}
                                                     </Badge>
                                                 ) : (
                                                     <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-100">—</Badge>
