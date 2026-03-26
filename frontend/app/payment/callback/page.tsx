@@ -26,12 +26,11 @@ function PaymentCallbackContent() {
         const razorpaySignature = searchParams.get("razorpay_signature")
         const errorCode = searchParams.get("error[code]") ?? searchParams.get("error%5Bcode%5D")
         const errorDescription = searchParams.get("error[description]") ?? searchParams.get("error%5Bdescription%5D")
-        // We embed the paymentId (our DB UUID) and returnUrl in the callback_url
         const paymentId = searchParams.get("paymentId")
         const returnPath = searchParams.get("returnUrl")
 
-        // searchParams.get() already decodes the value once.
-        // As a safety net, if the value still looks encoded, decode once more.
+        // useSearchParams().get() decodes once. If the value is still encoded
+        // (double-encoded from encodeURIComponent + searchParams.set), decode once more.
         if (returnPath) {
             try {
                 const decoded = returnPath.includes("%3A") || returnPath.includes("%2F")
@@ -43,71 +42,71 @@ function PaymentCallbackContent() {
             }
         }
 
-        // Payment failed at Razorpay level
-        if (errorCode || (!razorpaySignature && !razorpayPaymentId)) {
+        // ── CASE 1: Explicit Razorpay error in URL ─────────────────────────────
+        // Razorpay appends error[code] and error[description] on payment failure
+        if (errorCode) {
             setState("failed")
             setMessage(errorDescription ?? "Payment was not completed.")
             return
         }
 
-        if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-            setState("error")
-            setMessage("Invalid callback parameters.")
+        // ── CASE 2: We have our DB paymentId — poll regardless of Razorpay params ─
+        // On mobile UPI, Razorpay often redirects to callback_url WITHOUT appending
+        // razorpay_order_id/payment_id/signature. The webhook has already confirmed
+        // the payment. We must NOT treat missing Razorpay params as failure.
+        if (paymentId) {
+            const run = async () => {
+                // If Razorpay did append all params, also verify signature
+                if (razorpayOrderId && razorpayPaymentId && razorpaySignature) {
+                    try {
+                        await verifyPayment({ razorpayOrderId, razorpayPaymentId, razorpaySignature })
+                    } catch {
+                        // Verification failed — still poll, webhook is source of truth
+                    }
+                }
+
+                setState("polling")
+
+                let attempts = 0
+                const maxAttempts = 10
+                const interval = setInterval(async () => {
+                    attempts++
+                    try {
+                        const result = await getPaymentStatus(paymentId)
+                        const status = result.payment.status
+
+                        if (status === "SUCCESS") {
+                            clearInterval(interval)
+                            setState("success")
+                            return
+                        }
+                        if (status === "FAILED" || status === "CANCELLED") {
+                            clearInterval(interval)
+                            setState("failed")
+                            setMessage("Payment was not successful. Please retry.")
+                            return
+                        }
+                        if (attempts >= maxAttempts) {
+                            clearInterval(interval)
+                            // Timeout — payment likely succeeded, webhook confirms async
+                            setState("success")
+                        }
+                    } catch {
+                        if (attempts >= maxAttempts) {
+                            clearInterval(interval)
+                            setState("success") // optimistic on network timeout
+                        }
+                    }
+                }, 3000)
+            }
+            run()
             return
         }
 
-        // Verify signature then poll
-        const run = async () => {
-            try {
-                await verifyPayment({ razorpayOrderId, razorpayPaymentId, razorpaySignature })
-            } catch {
-                // Verification network error — still poll, webhook may have already confirmed
-            }
-
-            if (!paymentId) {
-                // No paymentId in callback — can't poll, trust verification
-                setState("success")
-                return
-            }
-
-            setState("polling")
-
-            // Poll for up to 30s
-            let attempts = 0
-            const maxAttempts = 10
-            const interval = setInterval(async () => {
-                attempts++
-                try {
-                    const result = await getPaymentStatus(paymentId)
-                    // result is already unwrapped by publicClient — access directly
-                    const status = result.payment.status
-
-                    if (status === "SUCCESS") {
-                        clearInterval(interval)
-                        setState("success")
-                        return
-                    }
-                    if (status === "FAILED" || status === "CANCELLED") {
-                        clearInterval(interval)
-                        setState("failed")
-                        setMessage(result.payment.failureReason ?? "Payment was not successful.")
-                        return
-                    }
-                    if (attempts >= maxAttempts) {
-                        clearInterval(interval)
-                        // Timeout — payment likely succeeded, webhook will confirm
-                        setState("success")
-                    }
-                } catch {
-                    if (attempts >= maxAttempts) {
-                        clearInterval(interval)
-                        setState("success") // optimistic on timeout
-                    }
-                }
-            }, 3000)
-        }
-
-        run()
+        // ── CASE 3: No paymentId, no error — unexpected state ─────────────────
+        // Should not normally happen. Show error.
+        setState("error")
+        setMessage("Unable to confirm payment status. Please check your email for confirmation.")
     }, [searchParams])
 
     if (state === "verifying" || state === "polling") {
