@@ -28,7 +28,7 @@ export const PATTERN_OPTIONS: PatternOption[] = [
     {
         key: "lettersOnly",
         label: "Letters only",
-        description: "Only A–Z and a–z, no numbers or symbols",
+        description: "Only A–Z, a–z and spaces, no numbers or symbols",
         group: "chars",
     },
     {
@@ -107,14 +107,14 @@ export function buildPattern(state: PatternBuilderState): string | undefined {
     }
 
     // Build character class
-    let charClass = ""
+    let charClass = " "
 
     if (opts.includes("numbersOnly")) {
         charClass = "0-9"
     } else if (opts.includes("lettersOnly")) {
-        if (opts.includes("uppercaseOnly")) charClass = "A-Z"
-        else if (opts.includes("lowercaseOnly")) charClass = "a-z"
-        else charClass = "A-Za-z"
+        if (opts.includes("uppercaseOnly")) charClass = "A-Z "
+        else if (opts.includes("lowercaseOnly")) charClass = "a-z "
+        else charClass = "A-Za-z "
     } else if (opts.includes("lettersAndNumbers")) {
         if (opts.includes("uppercaseOnly")) charClass = "A-Z0-9"
         else if (opts.includes("lowercaseOnly")) charClass = "a-z0-9"
@@ -152,12 +152,18 @@ export function parsePattern(pattern: string): PatternBuilderState {
         return { selectedOptions: ["phoneNumber"] }
     if (pattern === "^\\S+$")
         return { selectedOptions: ["noSpaces"] }
-    if (pattern === "^[A-Za-z]+$")
+    if (pattern === "^[A-Za-z ]+$")
         return { selectedOptions: ["lettersOnly"] }
-    if (pattern === "^[A-Z]+$")
+    if (pattern === "^[A-Za-z]+$")
+        return { selectedOptions: ["lettersOnly", "noSpaces"] }
+    if (pattern === "^[A-Z ]+$")
         return { selectedOptions: ["lettersOnly", "uppercaseOnly"] }
-    if (pattern === "^[a-z]+$")
+    if (pattern === "^[A-Z]+$")
+        return { selectedOptions: ["lettersOnly", "uppercaseOnly", "noSpaces"] }
+    if (pattern === "^[a-z ]+$")
         return { selectedOptions: ["lettersOnly", "lowercaseOnly"] }
+    if (pattern === "^[a-z]+$")
+        return { selectedOptions: ["lettersOnly", "lowercaseOnly", "noSpaces"] }
     if (pattern === "^[0-9]+$")
         return { selectedOptions: ["numbersOnly"] }
     if (pattern === "^[A-Za-z0-9]+$")

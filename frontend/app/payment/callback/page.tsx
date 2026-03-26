@@ -30,7 +30,18 @@ function PaymentCallbackContent() {
         const paymentId = searchParams.get("paymentId")
         const returnPath = searchParams.get("returnUrl")
 
-        if (returnPath) setReturnUrl(decodeURIComponent(returnPath))
+        // searchParams.get() already decodes the value once.
+        // As a safety net, if the value still looks encoded, decode once more.
+        if (returnPath) {
+            try {
+                const decoded = returnPath.includes("%3A") || returnPath.includes("%2F")
+                    ? decodeURIComponent(returnPath)
+                    : returnPath
+                setReturnUrl(decoded)
+            } catch {
+                setReturnUrl(returnPath)
+            }
+        }
 
         // Payment failed at Razorpay level
         if (errorCode || (!razorpaySignature && !razorpayPaymentId)) {
@@ -68,7 +79,8 @@ function PaymentCallbackContent() {
                 attempts++
                 try {
                     const result = await getPaymentStatus(paymentId)
-                    const status = result.data.payment.status
+                    // result is already unwrapped by publicClient — access directly
+                    const status = result.payment.status
 
                     if (status === "SUCCESS") {
                         clearInterval(interval)
@@ -78,7 +90,7 @@ function PaymentCallbackContent() {
                     if (status === "FAILED" || status === "CANCELLED") {
                         clearInterval(interval)
                         setState("failed")
-                        setMessage(result.data.payment.failureReason ?? "Payment was not successful.")
+                        setMessage(result.payment.failureReason ?? "Payment was not successful.")
                         return
                     }
                     if (attempts >= maxAttempts) {

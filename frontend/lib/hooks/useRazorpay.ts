@@ -116,8 +116,9 @@ export function useRazorpay(): UseRazorpayReturn {
 
         const callbackUrl = new URL("/payment/callback", window.location.origin)
         callbackUrl.searchParams.set("paymentId", orderData.paymentId)
-        // Encode the current form page URL so callback page can send user back
-        callbackUrl.searchParams.set("returnUrl", encodeURIComponent(window.location.href))
+        // searchParams.set() auto-encodes the value — do NOT pre-encode with encodeURIComponent
+        // or the URL will be double-encoded (%253A instead of %3A)
+        callbackUrl.searchParams.set("returnUrl", window.location.href)
 
         const options = {
             key: orderData.keyId,

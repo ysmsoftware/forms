@@ -8,23 +8,21 @@ export interface CreateOrderResult {
     paymentId: string
 }
 
+// publicClient already unwraps json.data — this is the unwrapped shape
 export interface PaymentStatusResult {
-    success: boolean,
-    data: {
-        payment: {
-            id: string
-            eventId: string,
-            submissionId: string,
-            amount: number
-            status: "CREATED" | "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED" | "REFUNDED"
-            webhookConfirmed: boolean
-            razorpayPaymentId: string | null
-            paidAt: string | null
-            failureReason: string | null
-        },
-        eventId: string,
-        contactId: string,
+    payment: {
+        id: string
+        eventId: string
+        submissionId: string
+        amount: number
+        status: "CREATED" | "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED" | "REFUNDED"
+        webhookConfirmed: boolean
+        razorpayPaymentId: string | null
+        paidAt: string | null
+        failureReason: string | null
     }
+    eventId: string
+    contactId: string
 }
 
 export async function createOrder(submissionId: string): Promise<CreateOrderResult> {
