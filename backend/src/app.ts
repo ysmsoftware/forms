@@ -30,8 +30,8 @@ app.use(helmet({
 
 // Attach a unique request ID to every request
 app.use(addRequestId({
-    setHeader:     true,
-    headerName:    'X-Request-Id',
+    setHeader: true,
+    headerName: 'X-Request-Id',
     attributeName: 'id',
 }));
 
@@ -42,9 +42,12 @@ app.post(
     paymentController.handleWebhook
 );
 
+
+
+
 // CORS
 app.use(cors({
-    origin:      process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     credentials: true,
 }));
 
@@ -78,10 +81,10 @@ app.get('/health', async (req, res) => {
     const healthy = db.status === 'fulfilled' && cache.status === 'fulfilled';
 
     res.status(healthy ? 200 : 503).json({
-        status:    healthy ? 'OK' : 'DEGRADED',
-        db:        db.status    === 'fulfilled' ? 'OK' : 'ERROR',
-        cache:     cache.status === 'fulfilled' ? 'OK' : 'ERROR',
-        uptime:    process.uptime(),
+        status: healthy ? 'OK' : 'DEGRADED',
+        db: db.status === 'fulfilled' ? 'OK' : 'ERROR',
+        cache: cache.status === 'fulfilled' ? 'OK' : 'ERROR',
+        uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         requestId: req.id,
     });
@@ -93,8 +96,8 @@ app.use('/api', routes);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
-        success:   false,
-        message:   'Route not found',
+        success: false,
+        message: 'Route not found',
         requestId: req.id,
     });
 });
