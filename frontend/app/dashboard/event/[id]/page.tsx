@@ -109,8 +109,6 @@ export default function EventDetailPage() {
         )
     }
 
-    const recentSubmissions = submissions.slice(0, 10)
-
     /* ────────────────────── Rendered page ────────────────────── */
     return (
         <div className="space-y-8">
@@ -293,12 +291,12 @@ export default function EventDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* ─── SECTION D — Recent Submissions ─────────── */}
+            {/* ─── SECTION D — Submissions ─────────── */}
             <SubmissionTable
-                submissions={recentSubmissions}
+                submissions={submissions}
                 paymentEnabled={event?.paymentEnabled ?? false}
-                maxRows={10}
-                title="Recent Submissions"
+                paginated={true}
+                title="All Submissions"
             />
         </div>
     )

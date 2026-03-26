@@ -37,6 +37,7 @@ interface SubmissionTableProps {
     paymentEnabled?: boolean
     maxRows?: number
     title?: string
+    paginated?: boolean
 }
 
 const statusColor: Record<string, string> = {
@@ -50,14 +51,23 @@ export function SubmissionTable({
     submissions,
     paymentEnabled = false,
     maxRows,
-    title = "Submissions"
+    title = "Submissions",
+    paginated = false
 }: SubmissionTableProps) {
     const [selected, setSelected] = useState<FormSubmission | null>(null)
     const [open, setOpen] = useState(false)
     const [detailLoading, setDetailLoading] = useState(false)
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
 
-    const displaySubmissions = maxRows ? submissions.slice(0, maxRows) : submissions
+    const itemsPerPage = 10
+    const totalPages = Math.ceil(submissions.length / itemsPerPage)
+
+    const displaySubmissions = paginated
+        ? submissions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+        : maxRows 
+            ? submissions.slice(0, maxRows) 
+            : submissions
 
     // Smart Column Detection
     const hasName = submissions.some(s => s.contact?.name)
@@ -223,7 +233,7 @@ export function SubmissionTable({
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div className="space-y-1">
                     <CardTitle>{title}</CardTitle>
-                    {maxRows && submissions.length > maxRows && (
+                    {!paginated && maxRows && submissions.length > maxRows && (
                         <CardDescription>
                             Showing {displaySubmissions.length} of {submissions.length} submissions
                         </CardDescription>
@@ -338,6 +348,31 @@ export function SubmissionTable({
                                 ))}
                             </TableBody>
                         </Table>
+                    </div>
+                )}
+                {paginated && totalPages > 1 && submissions.length > 0 && (
+                    <div className="flex items-center justify-between pt-4 border-t mt-4">
+                        <div className="text-sm text-muted-foreground">
+                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, submissions.length)} of {submissions.length} results
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
                 )}
             </CardContent>
