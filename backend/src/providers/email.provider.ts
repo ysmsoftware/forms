@@ -13,6 +13,9 @@ export interface IEmailProvider {
 
 export class EmailProvider {
 
+
+
+
     // Transporter is created lazily inside the constructor, not at module load time.
     // Creating it as a top-level constant caused it to read env vars before dotenv.config()
     // had run on the VPS, resulting in undefined credentials and 535 auth errors.
@@ -31,18 +34,18 @@ export class EmailProvider {
     }
 
     async send<T extends MessageTemplate>(
-        template: T, 
-        destination: string, 
+        template: T,
+        destination: string,
         params: TemplateParamsMap[T]
     ): Promise<any> {
-        
-        if(!destination) {
+
+        if (!destination) {
             throw new Error("Destination is required");
         }
 
         const templateConfig = MessageTemplateResolver.getEmail(template);
 
-        if(!templateConfig) {
+        if (!templateConfig) {
             throw new Error(`Email template not implemented: ${template}`);
         }
 
