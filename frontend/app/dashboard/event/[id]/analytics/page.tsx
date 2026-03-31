@@ -95,10 +95,10 @@ export default function EventAnalytics() {
                             View Form
                         </Link>
                     </Button>
-                    <Button>
+                    {/* <Button>
                         <Download className="mr-2 h-4 w-4" />
                         Export Data
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
 
@@ -184,6 +184,21 @@ export default function EventAnalytics() {
                 paymentEnabled={event?.paymentEnabled ?? false}
                 title="Recent Responses"
             />
+            <div className="flex justify-end">
+                {event?.id ? (
+                    <Button variant="outline" asChild>
+                        <Link href={`/dashboard/event/${event.id}`} >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View All Responses
+                        </Link>
+                    </Button>
+                ) : (
+                    <Button variant="outline" disabled>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View All Responses
+                    </Button>
+                )}
+            </div>
         </div>
     )
 }
