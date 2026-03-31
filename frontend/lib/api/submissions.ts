@@ -77,9 +77,15 @@ export async function submitForm(
 // ── Admin view ───────────────────────────────────────────
 
 export async function getSubmissionsByEvent(
-    eventId: string
+    eventId: string,
+    params?: { limit?: number; offset?: number; status?: string }
 ): Promise<SubmissionListResponse> {
-    return apiClient(`/submissions/admin/events/${eventId}/submissions`);
+    const limit = params?.limit ?? 20
+    const offset = params?.offset ?? 0
+    const status = params?.status ?? "ALL"
+    return apiClient(
+        `/submissions/admin/events/${eventId}/submissions?limit=${limit}&offset=${offset}&status=${status}`
+    );
 }
 
 export async function getSubmissionById(

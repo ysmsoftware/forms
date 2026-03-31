@@ -1,7 +1,7 @@
 import logger from "../config/logger";
 import { redis } from "../config/redis";
 import { PublicFormResponseDTO } from "../dtos/submissions/publicForm-response.dto";
-import { AdminSubmissionListResponseDTO, AdminSubmissionResponseDTO, SubmissionResponseDTO } from "../dtos/submissions/submission-response.dto";
+import { AdminSubmissionListResponseDTO, AdminSubmissionResponseDTO, SubmissionListItemDTO, SubmissionResponseDTO } from "../dtos/submissions/submission-response.dto";
 import { BadRequestError, NotFoundError } from "../errors/http-errors";
 import { toPublicFormResponseDTO } from "../mappers/publicForm.mapper";
 import { IEventRepository } from "../repositories/event.repo";
@@ -341,23 +341,13 @@ export class SubmissionService {
             }
         );
 
-        const items: AdminSubmissionResponseDTO[] = submissions.map((s) => {
-            const dto: AdminSubmissionResponseDTO = {
+        const items: SubmissionListItemDTO[] = submissions.map((s) => {
+            const dto: SubmissionListItemDTO = {
                 id: s.id,
                 eventId: s.eventId,
                 formId: s.formId,
                 status: s.status,
                 submittedAt: s.submittedAt,
-                answers: s.answers.map((a) => ({
-                    fieldId: a.fieldId,
-                    fieldKey: a.fieldKey,
-                    ...(a.valueText !== null && { valueText: a.valueText }),
-                    ...(a.valueNumber !== null && { valueNumber: a.valueNumber }),
-                    ...(a.valueBoolean !== null && { valueBoolean: a.valueBoolean }),
-                    ...(a.valueDate !== null && { valueDate: a.valueDate }),
-                    ...(a.valueJson !== null && { valueJson: a.valueJson }),
-                    ...(a.fileUrl !== null && { fileUrl: a.fileUrl }),
-                })),
             };
 
             if (s.contact) {
@@ -374,11 +364,6 @@ export class SubmissionService {
                     id: s.payment.id,
                     status: s.payment.status,
                     amount: s.payment.amount,
-                    currency: s.payment.currency,
-                    razorpayPaymentId: s.payment.razorpayPaymentId,
-                    paidAt: s.payment.paidAt,
-                    webhookConfirmed: s.payment.webhookConfirmed,
-                    attempts: s.payment.attempts,
                 };
             }
 
@@ -387,6 +372,8 @@ export class SubmissionService {
 
         return { total: totalCount, items };
     }
+
+
 
     async saveDraft(slug: string, visitorUuid: string, draft: any): Promise<void> {
         const event = await this.eventRepo.findBySlug(slug);

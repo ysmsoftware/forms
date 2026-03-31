@@ -38,6 +38,10 @@ interface SubmissionTableProps {
     maxRows?: number
     title?: string
     paginated?: boolean
+    totalCount?: number
+    currentPage?: number
+    pageSize?: number
+    onPageChange?: (page: number) => void
 }
 
 const statusColor: Record<string, string> = {
@@ -52,21 +56,32 @@ export function SubmissionTable({
     paymentEnabled = false,
     maxRows,
     title = "Submissions",
-    paginated = false
+    paginated = false,
+    totalCount,
+    currentPage,
+    pageSize,
+    onPageChange
 }: SubmissionTableProps) {
     const [selected, setSelected] = useState<FormSubmission | null>(null)
     const [open, setOpen] = useState(false)
     const [detailLoading, setDetailLoading] = useState(false)
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null)
-    const [currentPage, setCurrentPage] = useState(1)
+    const [localCurrentPage, setLocalCurrentPage] = useState(1)
 
     const itemsPerPage = 10
     const totalPages = Math.ceil(submissions.length / itemsPerPage)
 
+    const isServerPaginated = onPageChange != null;
+
+    const effectiveTotalCount = isServerPaginated ? totalCount! : submissions.length
+    const effectiveCurrentPage = isServerPaginated ? (currentPage ?? 0) + 1 : localCurrentPage
+    const effectiveTotalPages = Math.ceil(effectiveTotalCount / (pageSize ?? itemsPerPage))
+
+
     const displaySubmissions = paginated
-        ? submissions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-        : maxRows 
-            ? submissions.slice(0, maxRows) 
+        ? submissions.slice((localCurrentPage - 1) * itemsPerPage, localCurrentPage * itemsPerPage)
+        : maxRows
+            ? submissions.slice(0, maxRows)
             : submissions
 
     // Smart Column Detection
@@ -278,7 +293,9 @@ export function SubmissionTable({
                             <TableBody>
                                 {displaySubmissions.map((sub, idx) => (
                                     <TableRow key={sub.id}>
-                                        <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {(localCurrentPage - 1) * itemsPerPage + idx + 1}
+                                        </TableCell>
 
                                         {/* Dynamic Columns Data */}
                                         {hasContact ? (
@@ -350,25 +367,37 @@ export function SubmissionTable({
                         </Table>
                     </div>
                 )}
-                {paginated && totalPages > 1 && submissions.length > 0 && (
+                {(paginated || isServerPaginated) && effectiveTotalPages > 1 && (
                     <div className="flex items-center justify-between pt-4 border-t mt-4">
                         <div className="text-sm text-muted-foreground">
-                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, submissions.length)} of {submissions.length} results
+                            Showing {isServerPaginated
+                                ? `${(currentPage! * pageSize!) + 1}–${Math.min((currentPage! + 1) * pageSize!, effectiveTotalCount)}`
+                                : `${(localCurrentPage - 1) * itemsPerPage + 1}–${Math.min(localCurrentPage * itemsPerPage, submissions.length)}`
+                            } of {effectiveTotalCount} results
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
+                                onClick={() => isServerPaginated
+                                    ? onPageChange!(Math.max(0, currentPage! - 1))
+                                    : setLocalCurrentPage(prev => Math.max(1, prev - 1))
+                                }
+                                disabled={isServerPaginated ? currentPage === 0 : localCurrentPage === 1}
                             >
                                 Previous
                             </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
+                                onClick={() => isServerPaginated
+                                    ? onPageChange!(currentPage! + 1)
+                                    : setLocalCurrentPage(prev => Math.min(effectiveTotalPages, prev + 1))
+                                }
+                                disabled={isServerPaginated
+                                    ? (currentPage! + 1) >= effectiveTotalPages
+                                    : localCurrentPage >= effectiveTotalPages
+                                }
                             >
                                 Next
                             </Button>

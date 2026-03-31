@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,9 +43,19 @@ export default function EventDetailPage() {
     const params = useParams()
     const id = params.id as string
 
+    const [submissionPage, setSubmissionPage] = useState(0);
+    const PAGE_SIZE = 20;
+
     const { data: event, isLoading: isLoadingEvent } = useEvent(id)
     const { data: analytics, isLoading: isLoadingAnalytics } = useEventAnalytics(id)
-    const { data: submissionsResult, isLoading: isLoadingSubmissions } = useSubmissionsByEvent(id)
+    const { data: submissionsResult, isLoading: isLoadingSubmissions } = useSubmissionsByEvent(id, {
+        limit: PAGE_SIZE,
+        offset: (submissionPage) * PAGE_SIZE,
+        status: "ALL",
+
+    })
+
+    const totalCount = submissionsResult?.total ?? 0;
 
     const submissions = useMemo(
         () => submissionsResult?.items ?? [],
@@ -297,6 +307,10 @@ export default function EventDetailPage() {
                 paymentEnabled={event?.paymentEnabled ?? false}
                 paginated={true}
                 title="All Submissions"
+                totalCount={totalCount}
+                currentPage={submissionPage}
+                pageSize={PAGE_SIZE}
+                onPageChange={setSubmissionPage}
             />
         </div>
     )

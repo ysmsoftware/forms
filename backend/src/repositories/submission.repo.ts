@@ -24,6 +24,15 @@ export type SubmissionWithAnswers = FormSubmission & {
     } | null;
 };
 
+export type SubmissionListItem = FormSubmission & {
+    contact: Pick<Contact, "id" | "name" | "email" | "phone"> | null;
+    payment: {
+        id: string;
+        status: string;
+        amount: number;
+    } | null;
+};
+
 
 export interface ISubmissionRepository {
 
@@ -75,7 +84,7 @@ export interface ISubmissionRepository {
             formDate?: Date;
             toDate?: Date;
         }
-    ): Promise<{ items: SubmissionWithAnswers[], totalCount: number }>;
+    ): Promise<{ items: SubmissionListItem[], totalCount: number }>;
 
     attachFilesToContact(params: {
         fileIds: string[];
@@ -235,7 +244,7 @@ export class SubmissionsRepository implements ISubmissionRepository {
         }) as Promise<SubmissionWithAnswers | null>
     };
 
-    async findSubmissionsByEvent(eventId: string, options?: { status?: SubmissionStatus; limit?: number; offset?: number; fromDate?: Date; toDate?: Date; }): Promise<{ items: SubmissionWithAnswers[], totalCount: number }> {
+    async findSubmissionsByEvent(eventId: string, options?: { status?: SubmissionStatus; limit?: number; offset?: number; fromDate?: Date; toDate?: Date; }): Promise<{ items: SubmissionListItem[], totalCount: number }> {
         const where = {
             eventId,
             isDeleted: false,
@@ -250,26 +259,35 @@ export class SubmissionsRepository implements ISubmissionRepository {
             ),
         };
 
-        const [items, totalCount] = await prisma.$transaction([
+        const [items, totalCount] = await Promise.all([
             prisma.formSubmission.findMany({
                 where,
+                orderBy: { submittedAt: "desc" },
                 ...(options?.limit && { take: options.limit }),
                 ...(options?.offset && { skip: options.offset }),
-                include: {
-                    answers: {
-                        orderBy: { fieldKey: "asc" }
+                select: {
+                    id: true,
+                    eventId: true,
+                    formId: true,
+                    visitorId: true,
+                    contactId: true,
+                    status: true,
+                    submittedAt: true,
+                    isDeleted: true,
+
+                    contact: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            phone: true,
+                        }
                     },
-                    contact: true,
                     payment: {
                         select: {
                             id: true,
                             status: true,
                             amount: true,
-                            currency: true,
-                            razorpayPaymentId: true,
-                            paidAt: true,
-                            webhookConfirmed: true,
-                            attempts: true,
                         }
                     },
                 }
@@ -277,7 +295,7 @@ export class SubmissionsRepository implements ISubmissionRepository {
             prisma.formSubmission.count({ where })
         ]);
 
-        return { items: items as SubmissionWithAnswers[], totalCount };
+        return { items: items as SubmissionListItem[], totalCount };
     }
 
     async attachFilesToContact(params: {
