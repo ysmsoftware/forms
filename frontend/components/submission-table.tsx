@@ -68,7 +68,7 @@ export function SubmissionTable({
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null)
     const [localCurrentPage, setLocalCurrentPage] = useState(1)
 
-    const itemsPerPage = 10
+    const itemsPerPage = 20
     const totalPages = Math.ceil(submissions.length / itemsPerPage)
 
     const isServerPaginated = onPageChange != null;
