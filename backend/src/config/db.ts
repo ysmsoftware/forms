@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import logger from "./logger";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
@@ -6,7 +7,7 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient };
 // Configure WebSocket for Neon
 // neonConfig.webSocketConstructor = ws;
 
-// const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 
 export const prisma =
   globalForPrisma.prisma ||
