@@ -1,7 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
 import logger from "./logger";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
