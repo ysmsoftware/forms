@@ -93,7 +93,8 @@ async function handleResponse<T>(res: Response, fallback: string): Promise<T> {
  * Returns 202 — certificate is queued for async generation.
  */
 export async function issueCertificate(
-    submissionId: string
+    submissionId: string,
+    paramOverrides?: Record<string, string>
 ): Promise<IssueCertificateResult> {
     const res = await fetch(`${BASE_URL}/certificates/generate`, {
         method: "POST",
@@ -101,7 +102,7 @@ export async function issueCertificate(
             "Content-Type": "application/json",
             ...authHeaders(),
         },
-        body: JSON.stringify({ submissionId }),
+        body: JSON.stringify({ submissionId, paramOverrides }),
     })
     return handleResponse<IssueCertificateResult>(res, "Failed to issue certificate")
 }
@@ -163,5 +164,30 @@ export async function verifyCertificate(
         res,
         "Certificate not found"
     )
+    return json.data
+}
+
+/**
+ * Resolve missing template parameters for a certificate
+ * POST /api/certificates/resolve-params
+ */
+export async function resolveCertificateParams(
+    submissionId: string
+): Promise<{
+    resolved: Record<string, string>
+    missing: string[]
+}> {
+    const res = await fetch(`${BASE_URL}/certificates/resolve-params`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+        },
+        body: JSON.stringify({ submissionId }),
+    })
+    const json = await handleResponse<{
+        success: boolean
+        data: { resolved: Record<string, string>; missing: string[] }
+    }>(res, "Failed to resolve params")
     return json.data
 }

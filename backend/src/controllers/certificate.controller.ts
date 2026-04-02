@@ -7,7 +7,7 @@ export class CertificateController {
 
   issue = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { submissionId, submissionIds } = req.body;
+      const { submissionId, submissionIds, paramOverrides } = req.body;
 
       if (!submissionId && (!submissionIds || !Array.isArray(submissionIds) || submissionIds.length === 0)) {
         throw new BadRequestError("submissionId or submissionIds[] is required to issue certificate(s)");
@@ -18,7 +18,7 @@ export class CertificateController {
         : [...new Set<string>(submissionIds)];
 
       const isBulk = !submissionId;
-      const results = await this.certificateService.issueCertificates(ids);
+      const results = await this.certificateService.issueCertificates(ids, paramOverrides);
 
       const summary = {
         total: results.length,
@@ -97,5 +97,18 @@ export class CertificateController {
 
 
   }
+
+  resolveParams = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { submissionId } = req.body;
+      if (!submissionId) {
+        return res.status(400).json({ success: false, message: "submissionId is required" });
+      }
+      const result = await this.certificateService.resolveCertificateParams(submissionId);
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 }

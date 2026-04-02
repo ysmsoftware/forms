@@ -6,6 +6,7 @@ import path from 'path';
 interface WorkshopCertificateData {
   name?: string;
   workshopTitle?: string;
+  eventTitle?: string;
   date?: string;
   certificateId?: string;
 }
@@ -51,7 +52,7 @@ function drawWorkshopCertificate(doc: typeof PDFDocument, data: WorkshopCertific
   const PAGE_H = 612;
 
   const name = data.name || 'Name';
-  const workshopTitle = data.workshopTitle || '[Workshop_Title]';
+  const workshopTitle = data.eventTitle || data.workshopTitle || '[Workshop_Title]';
   const date = data.date || '[Date]';
   const certificateId = data.certificateId || 'xyz-xyz-xyx-xyz';
 
@@ -88,10 +89,13 @@ function drawWorkshopCertificate(doc: typeof PDFDocument, data: WorkshopCertific
 
   // 6. PARTICIPATION STATEMENT
   const BODY_Y = 325;
-  _mixedCentered(doc, 100, BODY_Y, PAGE_W - 200, 15, [
+  const nextY = _mixedCentered(doc, 100, BODY_Y, PAGE_W - 200, 15, [
     { t: 'has successfully participated in the ', b: false },
     { t: `\u201c${workshopTitle}\u201d`, b: true },
-    { t: ' organized by ', b: false },
+    { t: ' organized by', b: false },
+  ], COLORS.bodyDark);
+
+  _mixedCentered(doc, 100, nextY, PAGE_W - 200, 15, [
     { t: 'YSM INFO SOLUTION', b: true },
     { t: ' on ', b: false },
     { t: date, b: true },
@@ -150,7 +154,7 @@ function _mixedCentered(
   fs: number,
   runs: TextRun[],
   color: string
-): void {
+): number {
   const LH = fs * 1.5;
   const tokens: { w: string; b: boolean }[] = [];
 
@@ -190,6 +194,8 @@ function _mixedCentered(
     });
     cy += LH;
   });
+
+  return cy;
 }
 
 // ===== TEMPLATE SETTINGS =====

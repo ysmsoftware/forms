@@ -15,7 +15,12 @@ import {
 export function useIssueCertificate(eventId?: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (submissionId: string) => issueCertificate(submissionId),
+        mutationFn: (param: string | { submissionId: string; paramOverrides?: Record<string, string> }) => {
+            if (typeof param === "string") {
+                return issueCertificate(param)
+            }
+            return issueCertificate(param.submissionId, param.paramOverrides)
+        },
         onSuccess: () => {
             if (eventId) {
                 qc.invalidateQueries({ queryKey: queryKeys.certificates.byEvent(eventId) })

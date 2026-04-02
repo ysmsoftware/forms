@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, type ReactNode } from "react"
 import { useIssueCertificate } from "@/lib/query/hooks/useCertificate"
+import { resolveCertificateParams } from "@/lib/api/certificate"
 import { useEvents } from "@/lib/query/hooks/useEvents"
 import { useContacts } from "@/lib/query/hooks/useContacts"
 import { cn } from "@/lib/utils"
@@ -63,6 +64,10 @@ export function IssueCertificateDialog({
     const [bulkSearch, setBulkSearch] = useState("")
     const [bulkProgress, setBulkProgress] = useState<{ issued: number; total: number } | null>(null)
 
+    const [paramOverrides, setParamOverrides] = useState<Record<string, string>>({})
+    const [resolvedParams, setResolvedParams] = useState<{ resolved: Record<string, string>; missing: string[] } | null>(null)
+    const [isResolvingParams, setIsResolvingParams] = useState(false)
+
     // ── Data hooks ──────────────────────────────────────────────────────────
     const { data: events = [], isLoading: isLoadingEvents } = useEvents()
 
@@ -92,6 +97,19 @@ export function IssueCertificateDialog({
         }
     }, [open, preSelectedContactIds])
 
+    useEffect(() => {
+        if (mode !== "single" || !contactId || !submissionIdByContactId?.[contactId]) {
+            setResolvedParams(null)
+            return
+        }
+        const submissionId = submissionIdByContactId[contactId]
+        setIsResolvingParams(true)
+        resolveCertificateParams(submissionId)
+            .then(setResolvedParams)
+            .catch(() => setResolvedParams(null))
+            .finally(() => setIsResolvingParams(false))
+    }, [contactId, mode, submissionIdByContactId])
+
     // ── Core logic ──────────────────────────────────────────────────────────
     async function handleIssue() {
         if (mode === "single") {
@@ -100,7 +118,13 @@ export function IssueCertificateDialog({
                 toast.error("No submission found for this contact.")
                 return
             }
-            issueSingle.mutate(submissionId, {
+
+            const fullOverrides = {
+                ...(resolvedParams?.resolved || {}),
+                ...paramOverrides
+            }
+
+            issueSingle.mutate({ submissionId, paramOverrides: fullOverrides }, {
                 onSuccess: () => {
                     const c = eligibleContacts.find(c => c.id === contactId)
                     toast.success(`Certificate queued for ${c?.name || "contact"}.`)
@@ -146,11 +170,16 @@ export function IssueCertificateDialog({
     }
 
     // ── Disabled logic ──────────────────────────────────────────────────────
+    const hasUnfilledMissing = mode === "single" && resolvedParams
+        ? resolvedParams.missing.some(field => !paramOverrides[field]?.trim())
+        : false
+
     const issueDisabled =
         (mode === "single" && (!contactId || !submissionIdByContactId?.[contactId])) ||
         (mode === "bulk" && selectedContacts.filter(cId => !!submissionIdByContactId?.[cId]).length === 0) ||
         issueSingle.isPending ||
-        bulkProgress !== null
+        bulkProgress !== null ||
+        hasUnfilledMissing
 
     return (
         <Dialog open={open} onOpenChange={(val) => {
@@ -241,6 +270,57 @@ export function IssueCertificateDialog({
                                 Certificates are issued per submission. Only contacts with a completed submission can receive one.
                             </p>
                         </div>
+
+                        {/* ── Params Preview ─────────────────────── */}
+                        {mode === "single" && contactId && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-medium">Certificate Parameters</label>
+                                    {isResolvingParams && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
+                                </div>
+
+                                {resolvedParams && !isResolvingParams && (
+                                    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                                        {Object.entries(resolvedParams.resolved).map(([key, value]) => (
+                                            <div key={key} className="flex items-start gap-2 text-xs">
+                                                <span className="text-muted-foreground capitalize min-w-[80px] shrink-0 pt-0.5">
+                                                    {key}
+                                                </span>
+                                                <span className="text-foreground font-medium break-all">
+                                                    {value || <span className="text-muted-foreground italic">empty</span>}
+                                                </span>
+                                            </div>
+                                        ))}
+
+                                        {resolvedParams.missing.length > 0 && (
+                                            <div className="border-t pt-2 mt-2">
+                                                <p className="text-xs font-semibold text-amber-600 mb-2 flex items-center gap-1">
+                                                    <span>⚠</span>
+                                                    {resolvedParams.missing.length} field{resolvedParams.missing.length !== 1 ? "s" : ""} missing
+                                                </p>
+                                                {resolvedParams.missing.map((field) => (
+                                                    <div key={field} className="space-y-1 mb-2">
+                                                        <label className="text-xs font-medium capitalize text-muted-foreground">{field}</label>
+                                                        <Input
+                                                            className="h-7 text-xs"
+                                                            placeholder={`Enter ${field}...`}
+                                                            value={paramOverrides[field] ?? ""}
+                                                            onChange={(e) => setParamOverrides(prev => ({ ...prev, [field]: e.target.value }))}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {resolvedParams.missing.length === 0 && (
+                                            <p className="text-xs text-green-600 flex items-center gap-1 pt-1 border-t">
+                                                <Check className="h-3 w-3" /> All params resolved automatically
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column - Recipients */}

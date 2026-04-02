@@ -101,10 +101,13 @@ function drawCompletionCertificate(doc: typeof PDFDocument, data: CompletionCert
 
   // 9. PARTICIPATION BLOCK
   const BODY_Y = 325;
-  _mixedCentered(doc, COL_X, BODY_Y, COL_W, 14, [
+  const nextY = _mixedCentered(doc, COL_X, BODY_Y, COL_W, 14, [
     { t: 'has successfully participated in the ', b: false },
     { t: `\u201c${workshopTitle}\u201d`, b: true },
-    { t: ' organized by ', b: false },
+    { t: ' organized by', b: false },
+  ], COLORS.bodyText);
+
+  _mixedCentered(doc, COL_X, nextY, COL_W, 14, [
     { t: 'YSM INFO SOLUTION', b: true },
     { t: ' on ', b: false },
     { t: date, b: true },
@@ -159,7 +162,7 @@ function _mixedCentered(
   fs: number,
   runs: TextRun[],
   color: string
-): void {
+): number {
   const LH = fs * 1.5;
   const tokens: { w: string; b: boolean }[] = [];
   
@@ -199,6 +202,8 @@ function _mixedCentered(
     });
     cy += LH;
   });
+
+  return cy;
 }
 
 // ===== TEMPLATE SETTINGS =====

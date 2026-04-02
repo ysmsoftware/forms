@@ -14,6 +14,7 @@ export type CertificateWithRelations = Certificate & {
         description: string | null;
         slug: string;
         date: Date | null;
+        createdAt: Date;
     };
     fileAsset: {
         id: string;
@@ -67,7 +68,7 @@ export class CertificateRepository implements ICertificateRepository {
             select: { id: true, name: true, email: true, phone: true },
         },
         event: {
-            select: { id: true, title: true, description: true, slug: true, date: true },
+            select: { id: true, title: true, description: true, slug: true, date: true, createdAt: true },
         },
         fileAsset: {
             select: { id: true, url: true, name: true },

@@ -22,4 +22,7 @@ router.get(
 // GET /api/certificates/verify?certificateId=xxx  — public QR verify
 router.get("/verify", certificateController.verify);
 
+// POST /api/certificates/resolve-params
+router.post("/resolve-params", authMiddleware, certificateController.resolveParams);
+
 export default router;

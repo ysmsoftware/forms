@@ -13,7 +13,7 @@ export class CertificateWorkerService {
         private generator: CertificateGeneratorService
     ) {}
 
-    async generate(jobData: { certificateId: string }) {
+    async generate(jobData: { certificateId: string; paramOverrides?: Record<string, string> }) {
 
         const certificate = await this.certificateRepo.findById(jobData.certificateId);
         if (!certificate) throw new Error("Certificate not found");
@@ -29,17 +29,20 @@ export class CertificateWorkerService {
 
             const template = resolveTemplate(certificate.templateType);
 
+            const eventDate = certificate.event.date ? new Date(certificate.event.date) : (certificate.event.createdAt ? new Date(certificate.event.createdAt) : null);
+            const dateStr = eventDate ? eventDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
+
             // Build data object from contact + event — no submission.answers needed
             const data = {
                 name:             certificate.contact?.name   ?? "Participant",
                 email:            certificate.contact?.email  ?? "",
                 phone:            certificate.contact?.phone  ?? "",
                 eventTitle:       certificate.event.title,
+                workshopTitle:    certificate.event.title,
                 description:      certificate.event.description ?? "",
-                date:             certificate.event.date      ? new Date(certificate.event.date).toLocaleDateString("en-US", {
-                                      year: "numeric", month: "long", day: "numeric"
-                                  }) : "",
+                date:             dateStr,
                 certificateId:    certificate.id,
+                ...jobData.paramOverrides,
             };
 
             const pdfBuffer = await this.generator.generate({ 
