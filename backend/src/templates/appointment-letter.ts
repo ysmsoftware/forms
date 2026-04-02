@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import fs from 'fs';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -31,50 +33,31 @@ interface AppointmentLetterModule {
   settings: DocumentSettings;
 }
 
+const LETTER_HEAD_PATH = path.join(__dirname, '..', 'assets', 'YSM-letter-head.png');
+const STAMP_PATH = path.join(__dirname, '..', 'assets', 'YSM-stamp.png');
+const SIGNATURE_PATH = path.join(__dirname, '..', 'assets', 'YSM-signature.png');
+
 // ===== APPOINTMENT LETTER DRAWING FUNCTION =====
 
 /**
- * Appointment Letter Template - Fixed Alignment
+ * Appointment Letter Template
  * @param doc - The PDFKit document instance
  * @param data - Letter data
  */
 function drawAppointmentLetter(doc: typeof PDFDocument, data: AppointmentLetterData, qrBuffer?: Buffer): void {
   const pageWidth: number = 595.28; // A4 portrait width
   const pageHeight: number = 841.89; // A4 portrait height
-  const margin: number = 50;
-  const rightMargin: number = pageWidth - margin;
+  const margin: number = 60;
+  const contentWidth: number = pageWidth - 2 * margin;
 
-  // ===== HEADER - Company Info (Right aligned) =====
-  const companyName: string = data.companyName || 'Fay - Brekke';
-  const companyAddress: string = data.companyAddress || '38267 Deckow Crest';
+  // ===== LETTER HEAD =====
+  if (fs.existsSync(LETTER_HEAD_PATH)) {
+    doc.image(LETTER_HEAD_PATH, 0, 0, { width: pageWidth });
+  }
 
-  doc.fontSize(14)
-    .font('Helvetica-Bold')
-    .fillColor('#000000')
-    .text(companyName, margin, margin, {
-      width: pageWidth - (2 * margin),
-      align: 'right'
-    });
-
-  doc.fontSize(9)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(companyAddress, margin, doc.y + 2, {
-      width: pageWidth - (2 * margin),
-      align: 'right'
-    });
-
-  // Horizontal line
-  doc.moveDown(0.5);
-  const lineY: number = doc.y;
-  doc.moveTo(margin, lineY)
-    .lineTo(rightMargin, lineY)
-    .lineWidth(1)
-    .strokeColor('#000000')
-    .stroke();
+  let currentY: number = 130;
 
   // ===== DATE (Left aligned) =====
-  doc.moveDown(1);
   const currentDate: string = data.date || new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -82,126 +65,177 @@ function drawAppointmentLetter(doc: typeof PDFDocument, data: AppointmentLetterD
   });
 
   doc.fontSize(11)
-    .font('Helvetica')
+    .font('Helvetica-Bold')
     .fillColor('#000000')
-    .text(currentDate, margin, doc.y);
+    .text(currentDate, margin, currentY);
+
+  currentY = doc.y + 20;
 
   // ===== RECIPIENT DETAILS (Left aligned) =====
-  doc.moveDown(1.5);
-  doc.text('To,', margin, doc.y);
-  doc.moveDown(0.3);
-  doc.font('Helvetica-Bold').text(data.name || 'Marjolaine Dickinson', margin, doc.y);
-  doc.moveDown(0.3);
+  doc.font('Helvetica-Bold').text('To,', margin, currentY);
+  currentY = doc.y;
+  doc.font('Helvetica').text(data.name || 'Marjolaine Dickinson', margin, currentY);
 
-  if (data.recipientAddress) {
-    doc.font('Helvetica').text(data.recipientAddress, margin, doc.y);
-    doc.moveDown(0.3);
-  } else {
-    doc.font('Helvetica').text('8432 Hagenes Islands', margin, doc.y);
-    doc.moveDown(0.3);
-  }
+  currentY = doc.y + 30;
 
-  // ===== SUBJECT (Left aligned, underlined) =====
-  doc.moveDown(1);
-  const subjectText: string = `Subject: Appointment Letter for the position of ${data.position || 'Product Quality Producer'}`;
-  doc.font('Helvetica-Bold')
-    .fillColor('#000000')
-    .text(subjectText, margin, doc.y, {
+  // ===== TITLE =====
+  doc.fontSize(14)
+    .font('Helvetica-Bold')
+    .text('APPOINTMENT LETTER', margin, currentY, {
+      width: contentWidth,
+      align: 'center',
       underline: true
     });
 
+  currentY = doc.y + 30;
+
   // ===== SALUTATION =====
-  doc.moveDown(1.5);
-  doc.font('Helvetica')
-    .text(`Dear ${data.name || 'Marjolaine Dickinson'},`, margin, doc.y);
+  doc.fontSize(11)
+    .font('Helvetica-Bold')
+    .text(`Dear ${data.name || 'Marjolaine Dickinson'},`, margin, currentY);
+
+  currentY = doc.y + 15;
 
   // ===== BODY PARAGRAPH 1 =====
-  doc.moveDown(1);
-  const para1: string = `We are pleased to inform you that you have been selected for the position of ${data.position || 'Product Quality Producer'} at ${companyName}. We are excited about the potential you bring to our team.`;
+  const domain = data.position || 'Product Quality Producer';
+  const joinDate = data.startDate || '6/4/2026';
 
-  doc.text(para1, margin, doc.y, {
-    align: 'justify',
-    width: pageWidth - (2 * margin)
-  });
+  doc.font('Helvetica')
+    .text('This refers to the recent interviews you have had with us. We are pleased to appoint you as ', margin, currentY, {
+      continued: true,
+      width: contentWidth,
+      align: 'justify'
+    })
+    .font('Helvetica-Bold')
+    .text(`${domain}`, { continued: true })
+    .font('Helvetica')
+    .text(' with YSM Info Solution. You are expected to join the organization on or before ', { continued: true })
+    .font('Helvetica-Bold')
+    .text(`${joinDate}`, { continued: true })
+    .font('Helvetica')
+    .text('.', { continued: false });
 
-  // ===== TERMS AND CONDITIONS =====
-  doc.moveDown(1);
-  doc.font('Helvetica-Bold').text('Terms and Conditions:', margin, doc.y);
-  doc.moveDown(0.5);
-  doc.font('Helvetica');
-
-  const terms: string[] = [
-    `Start Date: Your employment will commence on ${data.startDate || '6/4/2026'}.`,
-    `Compensation: You will receive an annual CTC of ${data.salary || '$120722.51'}, subject to applicable taxes.`,
-    `Probation Period: You will be on a probation period of ${data.probation || '6 months'}.`,
-    `Work Location: Your primary work location will be ${data.location || 'Port Judyton'}.`
-  ];
-
-  terms.forEach((term: string) => {
-    doc.text(`• ${term}`, margin, doc.y, {
-      indent: 20,
-      width: pageWidth - (2 * margin)
-    });
-    doc.moveDown(0.3);
-  });
+  currentY = doc.y + 15;
 
   // ===== BODY PARAGRAPH 2 =====
-  doc.moveDown(0.5);
-  const para2: string = `We look forward to a long and mutually beneficial association. Please sign and return the duplicate copy of this letter as a token of your acceptance.`;
-
-  doc.text(para2, margin, doc.y, {
-    align: 'justify',
-    width: pageWidth - (2 * margin)
-  });
-
-  // ===== SIGNATURES SECTION =====
-  doc.moveDown(3);
-  const signatureY: number = doc.y;
-
-  // Left side - Company signature
+  const duration = data.probation || '6 months';
+  
   doc.font('Helvetica')
-    .text(`For ${companyName},`, margin, signatureY);
-
-  doc.moveDown(3);
-  doc.font('Helvetica-Bold')
-    .text('Authorised Signatory', margin, doc.y);
-
-  // Right side - Employee acceptance
-  const rightSideX: number = pageWidth - 220;
-  doc.font('Helvetica')
-    .text('Accepted by:', rightSideX, signatureY);
-
-  doc.moveDown(3);
-  doc.font('Helvetica')
-    .text(data.name || 'Marjolaine Dickinson', rightSideX, doc.y);
-
-  doc.moveDown(0.5);
-  doc.text('Date: _______________', rightSideX, doc.y);
-
-  // ===== FOOTER =====
-  const footerY: number = pageHeight - 30;
-  doc.fontSize(8)
+    .text('You will undergo training in Python Full Stack development at YSM for a period of ', margin, currentY, {
+      continued: true,
+      width: contentWidth,
+      align: 'justify'
+    })
+    .font('Helvetica-Bold')
+    .text(`${duration}`, { continued: true })
     .font('Helvetica')
-    .fillColor('#888888')
-    .text('Generated by Certificate Generator System', margin, footerY, {
-      align: 'center',
-      width: pageWidth - (2 * margin)
+    .text('.', { continued: false });
+
+  currentY = doc.y + 15;
+
+  // ===== BODY PARAGRAPH 3 =====
+  doc.font('Helvetica')
+    .text('All software programs, code, functions, data, business processes, encryption methods, algorithms, and systems worked upon during the course of your internship will remain the ', margin, currentY, {
+      continued: true,
+      width: contentWidth,
+      align: 'justify'
+    })
+    .font('Helvetica-Bold')
+    .text('exclusive intellectual property of YSM Info Solution.', { continued: true })
+    .font('Helvetica')
+    .text(' You are not permitted to share, copy, use, modify, or otherwise disclose such intellectual property outside the organization.', { continued: false });
+
+  currentY = doc.y + 15;
+
+  // ===== BODY PARAGRAPH 4 =====
+  doc.font('Helvetica')
+    .text('We look forward to your contributions and a long, mutually beneficial association.', margin, currentY, {
+      width: contentWidth,
+      align: 'justify'
     });
 
- // QR Code
-   if(qrBuffer) {
-     const qrSize = 60;
-    const qrX = pageWidth - qrSize - 35;
-    const qrY = pageHeight - qrSize - 35;
+  currentY = doc.y + 40;
+
+  // ===== SIGNATURES SECTION =====
+  const companyName = data.companyName || 'YSM Info Solution';
+
+  // "Regards,"
+  doc.fontSize(11)
+    .font('Helvetica')
+    .text('Regards,', margin, currentY);
+
+  currentY = doc.y + 4;
+
+  // "For <Company>"
+  doc.font('Helvetica-Bold')
+    .text(`For ${companyName}`, margin, currentY);
+
+  currentY = doc.y + 10;
+  
+  const signatureY = currentY;
+
+  // Signature image
+  let signatureAdded = false;
+  if (fs.existsSync(SIGNATURE_PATH)) {
+    const sigW = 75;
+    const sigH = 45;
+    doc.image(SIGNATURE_PATH, margin, currentY, { width: sigW, height: sigH });
+    signatureAdded = true;
+  }
+
+  // Stamp image
+  if (fs.existsSync(STAMP_PATH)) {
+    const stampW = 100;
+    const stampH = 100;
+    const stampX = pageWidth - margin - stampW - 20; 
+    const stampY = signatureY - 20;
+    doc.image(STAMP_PATH, stampX, stampY, { width: stampW, height: stampH });
+  }
+
+  if (signatureAdded) {
+    currentY += 51;
+  } else {
+    currentY += 40;
+  }
+
+  // Signatory
+  doc.fontSize(11)
+    .font('Helvetica-Bold')
+    .text('Authorized Signatory', margin, currentY);
+
+  currentY = doc.y + 2;
+
+  doc.fontSize(11)
+    .font('Helvetica')
+    .text('(Mr. Nilesh Sonawane)', margin, currentY);
+
+  // ===== FOOTER =====
+  const footerY: number = pageHeight - 60;
+  
+  doc.fontSize(8)
+    .font('Helvetica-Bold')
+    .fillColor('#8b9dc3') // A bluish/grey color based on the screenshot
+    .text('Office No. 2, 1st floor, Dhanraj Apt., Ambad Police Station Road, Nashik - 422 009.', margin, footerY, {
+      align: 'center',
+      width: contentWidth
+    });
+    
+  doc.fontSize(8)
+    .font('Helvetica-Bold')
+    .fillColor('#8b9dc3')
+    .text('Phone: +91-898-308-3698 | E-mail: info@ysminfosolution.com | Website: www.ysminfosolution.com', margin, doc.y + 2, {
+      align: 'center',
+      width: contentWidth
+    });
+
+  // QR Code (optional)
+  if (qrBuffer) {
+    const qrSize = 50;
+    const qrX = pageWidth - qrSize - 30;
+    const qrY = pageHeight - qrSize - 30;
 
     doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
-
-    doc.fontSize(6)
-        .font('Helvetica')
-        .fillColor('#888888')
-        .text('Scan to verify', qrX, qrY + qrSize + 2 , { width: qrSize, align: 'center' });
-   }
-
+  }
 }
 
 // ===== TEMPLATE SETTINGS =====

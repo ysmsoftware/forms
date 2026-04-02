@@ -1,4 +1,10 @@
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import fs from 'fs';
+
+const LETTER_HEAD_PATH = path.join(__dirname, '..', 'assets', 'YSM-letter-head.png');
+const STAMP_PATH = path.join(__dirname, '..', 'assets', 'YSM-stamp.png');
+const SIGNATURE_PATH = path.join(__dirname, '..', 'assets', 'YSM-signature.png');
 
 // ===== TYPE DEFINITIONS =====
 
@@ -64,43 +70,26 @@ function drawInternshipCertificate(
   const signatoryName: string  = data.signatoryName  || 'Mr. Nilesh Sonawane';
   const signatoryTitle: string = data.signatoryTitle || 'Authorized Signatory';
 
-  // ===== DECORATIVE BORDER =====
+  // ===== LETTER HEAD =====
 
-  doc.rect(margin / 2, margin / 2, pageWidth - margin, pageHeight - margin)
-    .lineWidth(2)
-    .strokeColor('#1a3a6b')
-    .stroke();
-
-  // Inner thin border
-  doc.rect(margin / 2 + 4, margin / 2 + 4, pageWidth - margin - 8, pageHeight - margin - 8)
-    .lineWidth(0.5)
-    .strokeColor('#1a3a6b')
-    .stroke();
-
-  // ===== COMPANY LOGO (top-centre, if provided) =====
-
-  let currentY: number = margin + 10;
-
-  if (data.companyLogoBuffer) {
-    const logoW = 120;
-    const logoH = 120;
-    const logoX = (pageWidth - logoW) / 2;
-    doc.image(data.companyLogoBuffer, logoX, currentY, { width: logoW, height: logoH });
-    currentY += logoH + 12;
+  if (fs.existsSync(LETTER_HEAD_PATH)) {
+    doc.image(LETTER_HEAD_PATH, 0, 0, { width: pageWidth });
   }
+
+  let currentY: number = 220;
 
   // ===== TITLE =====
 
-  doc.fontSize(26)
+  doc.fontSize(18)
     .font('Helvetica-Bold')
-    .fillColor('#1a3a6b')
+    .fillColor('#000000')
     .text('INTERNSHIP CERTIFICATE', margin, currentY, {
       width: contentWidth,
       align: 'center',
       underline: true,
     });
 
-  currentY = doc.y + 20;
+  currentY = doc.y + 40;
 
   // ===== DATE LINE =====
 
@@ -109,20 +98,12 @@ function drawInternshipCertificate(
     .fillColor('#000000')
     .text(issueDate, margin, currentY, {
       width: contentWidth,
-      align: 'left',
+      align: 'right',
     });
 
-  currentY = doc.y + 20;
+  currentY = doc.y + 30;
 
   // ===== BODY PARAGRAPH =====
-
-  const para: string =
-    `This is to certify that ` +
-    `${internName}` +
-    ` has successfully completed an internship at ` +
-    `${companyName}` +
-    ` for the period from ` +
-    `${startDate} to ${endDate}.`;
 
   // Render paragraph with inline bold runs using manual positioning
   // (PDFKit doesn't support mixed bold inline; we use separate text calls)
@@ -201,12 +182,33 @@ function drawInternshipCertificate(
 
   currentY = doc.y + 10;
 
+  const signatureY = currentY;
+
   // Signature image (if provided)
+  let signatureAdded = false;
   if (data.signatureBuffer) {
     const sigW = 75;
     const sigH = 45;
     doc.image(data.signatureBuffer, margin, currentY, { width: sigW, height: sigH });
-    currentY += sigH + 6;
+    signatureAdded = true;
+  } else if (fs.existsSync(SIGNATURE_PATH)) {
+    const sigW = 75;
+    const sigH = 45;
+    doc.image(SIGNATURE_PATH, margin, currentY, { width: sigW, height: sigH });
+    signatureAdded = true;
+  }
+
+  // Stamp image
+  if (fs.existsSync(STAMP_PATH)) {
+    const stampW = 100;
+    const stampH = 100;
+    const stampX = pageWidth - margin - stampW;
+    const stampY = signatureY - 20;
+    doc.image(STAMP_PATH, stampX, stampY, { width: stampW, height: stampH });
+  }
+
+  if (signatureAdded) {
+    currentY += 51;
   } else {
     currentY += 40; // blank space for wet signature
   }
