@@ -1,3 +1,5 @@
+import type { CertificateFilters } from "@/lib/api/certificate"
+
 export const queryKeys = {
     // Events
     events: {
@@ -50,7 +52,8 @@ export const queryKeys = {
     // Certificates
     certificates: {
         all: ["certificates"] as const,
-        byEvent: (eventId: string) => ["certificates", "event", eventId] as const,
+        list: (filters: CertificateFilters) => ["certificates", "list", filters] as const,
+        byEvent: (eventId: string, page?: number, limit?: number) => ["certificates", "event", eventId, page ?? 1, limit ?? 20] as const,
         verify: (certificateId: string) => ["certificates", "verify", certificateId] as const,
     },
 

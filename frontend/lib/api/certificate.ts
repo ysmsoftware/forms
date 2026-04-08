@@ -7,8 +7,49 @@ export type CertificateTemplateType =
     | "COMPLETION"
     | "INTERNSHIP"
     | "WORKSHOP"
+    | "WORKSHOP"
+
+/** Extended item that includes event info (from the global list endpoint) */
+export interface CertificateListItem {
+  id: string
+  submissionId: string | null
+  status: CertificateStatus
+  templateType: CertificateTemplateType
+  issuedAt: string | null
+  event: { id: string; title: string } | null
+  contact: { id: string; name: string | null; email: string | null } | null
+  fileUrl: string | null
+  fileName: string | null
+}
+
+export interface CertificateListResult {
+  items: CertificateListItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface CertificateFilters {
+  eventId?: string
+  status?: CertificateStatus
+  templateType?: CertificateTemplateType
+  contactName?: string
+  dateFrom?: string    // ISO date string
+  dateTo?: string      // ISO date string
+  page?: number
+  limit?: number
+}
 
 /** Shape returned by GET /api/certificates/event/:eventId */
+export interface CertificateByEventResult {
+    items: CertificateItem[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+}
+
 export interface CertificateItem {
     id: string
     submissionId: string
@@ -88,6 +129,33 @@ async function handleResponse<T>(res: Response, fallback: string): Promise<T> {
 // ─── API functions ────────────────────────────────────────────────────────────
 
 /**
+ * Fetch all certificates with optional filters.
+ * GET /api/certificates?eventId=...&status=...&page=...
+ */
+export async function getAllCertificates(
+  filters: CertificateFilters = {}
+): Promise<CertificateListResult> {
+  const params = new URLSearchParams()
+  if (filters.eventId)      params.set("eventId",      filters.eventId)
+  if (filters.status)       params.set("status",        filters.status)
+  if (filters.templateType) params.set("templateType",  filters.templateType)
+  if (filters.contactName)  params.set("contactName",   filters.contactName)
+  if (filters.dateFrom)     params.set("dateFrom",      filters.dateFrom)
+  if (filters.dateTo)       params.set("dateTo",        filters.dateTo)
+  if (filters.page)         params.set("page",          String(filters.page))
+  if (filters.limit)        params.set("limit",         String(filters.limit))
+
+  const qs = params.toString()
+  const res = await fetch(`${BASE_URL}/certificates${qs ? `?${qs}` : ""}`, {
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+  })
+  const json = await handleResponse<{ success: boolean; data: CertificateListResult }>(
+    res, "Failed to fetch certificates"
+  )
+  return json.data
+}
+
+/**
  * Issue a certificate for a single submission.
  * POST /api/certificates/generate  { submissionId }
  * Returns 202 — certificate is queued for async generation.
@@ -130,20 +198,27 @@ export async function issueCertificateBulk(
 }
 
 /**
- * Fetch all certificates issued for an event.
- * GET /api/certificates/event/:eventId  [auth]
+ * Fetch certificates for an event with pagination.
+ * GET /api/certificates/event/:eventId?page=...&limit=...  [auth]
  */
 export async function getCertificatesByEvent(
-    eventId: string
-): Promise<CertificateItem[]> {
-    const res = await fetch(`${BASE_URL}/certificates/event/${eventId}`, {
+    eventId: string,
+    page?: number,
+    limit?: number
+): Promise<CertificateByEventResult> {
+    const params = new URLSearchParams();
+    if (page) params.set("page", String(page));
+    if (limit) params.set("limit", String(limit));
+
+    const qs = params.toString();
+    const res = await fetch(`${BASE_URL}/certificates/event/${eventId}${qs ? `?${qs}` : ""}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
             ...authHeaders(),
         },
     })
-    const json = await handleResponse<{ success: boolean; data: CertificateItem[] }>(
+    const json = await handleResponse<{ success: boolean; data: CertificateByEventResult }>(
         res,
         "Failed to fetch certificates"
     )
@@ -191,3 +266,42 @@ export async function resolveCertificateParams(
     }>(res, "Failed to resolve params")
     return json.data
 }
+
+// ─── Direct Issue (no submission required) ────────────────────────────────
+
+export interface ResolveParamsForTemplateResult {
+  resolved: Record<string, string>
+  missing: string[]
+}
+
+export async function resolveParamsForTemplate(
+  contactId: string,
+  templateType: CertificateTemplateType
+): Promise<ResolveParamsForTemplateResult> {
+  const res = await fetch(`${BASE_URL}/certificates/resolve-params-template`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ contactId, templateType }),
+  })
+  const json = await handleResponse<{ success: boolean; data: ResolveParamsForTemplateResult }>(
+    res, "Failed to resolve params"
+  )
+  return json.data
+}
+
+export async function issueDirectCertificate(input: {
+  contactId: string
+  templateType: CertificateTemplateType
+  paramOverrides: Record<string, string>
+}): Promise<{ id: string; status: string }> {
+  const res = await fetch(`${BASE_URL}/certificates/issue-direct`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(input),
+  })
+  const json = await handleResponse<{ message: string; data: { id: string; status: string } }>(
+    res, "Failed to issue certificate"
+  )
+  return json.data
+}
+

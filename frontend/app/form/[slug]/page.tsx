@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { useRazorpay } from "@/lib/hooks/useRazorpay"
 import type { SubmitFormResult } from "@/lib/api/submissions"
-import { CreditCard, CheckCircle, Clock, Shield, FormInput, Loader2, AlertCircle, XCircle } from "lucide-react"
+import { CreditCard, CheckCircle, CheckSquare, Clock, Shield, FormInput, Loader2, AlertCircle, XCircle } from "lucide-react"
 import {
     loadPublicForm,
     recordVisit,
@@ -260,9 +260,11 @@ export default function PublicForm() {
                         answer.fileUrl = String(raw)
                     } else if (field.type === "NUMBER" || field.type === "RANGE") {
                         answer.valueNumber = Number(raw)
+                    } else if (field.type === "DATE") {
+                        answer.valueDate = new Date(raw)
                     } else if (field.type === "CHECKBOX") {
                         if (Array.isArray(raw)) {
-                            answer.valueText = raw.join(", ")
+                            answer.valueJson = raw
                         } else {
                             answer.valueBoolean = Boolean(raw)
                         }

@@ -86,7 +86,6 @@ enum ContactEventSource {
 
 
 // USER & AUTH
-
 model User {
   id            String      @id @default(uuid())
   name          String
@@ -101,7 +100,6 @@ model User {
 }
 
 // EVENT
-
 model Event {
   id              String        @id @default(uuid())
   userId          String
@@ -415,18 +413,18 @@ model Payment {
 
 model Certificate {
   id             String             @id @default(uuid())
-  submissionId   String             @unique
+  submissionId   String?            @unique
   contactId      String?
-  eventId        String
+  eventId        String?
   fileAssetId    String?
   status         CertificateStatus   @default(QUEUED)
   templateType   CertificateTemplateType   @default(COMPLETION)
   issuedAt       DateTime?           
   isDeleted      Boolean            @default(false)
 
-  submission FormSubmission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission FormSubmission?         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   contact    Contact?                @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  event      Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event      Event?                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   fileAsset  FileAsset? @relation(fields: [fileAssetId], references: [id])
 
   @@index([contactId])

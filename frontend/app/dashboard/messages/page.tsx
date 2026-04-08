@@ -127,7 +127,7 @@ export default function MessagesPage() {
             }
         }
         setRetryingAll(false)
-        if (failCount === 0) toast(`${successCount} failed message${successCount !== 1 ? "s" : ""} retried successfully`)
+        if (failCount === 0) toast.info(`${successCount} failed message${successCount !== 1 ? "s" : ""} retried successfully`)
         else toast.error(`${successCount} retried, ${failCount} still failing`)
     }
 

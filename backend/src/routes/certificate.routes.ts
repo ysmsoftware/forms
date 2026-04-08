@@ -11,6 +11,12 @@ router.post(
     authMiddleware,
     certificateController.issue
 );
+// GET /api/certificates  — all certs with filters [auth]
+router.get(
+    '/',
+    authMiddleware,
+    certificateController.getAll
+);
 
 // GET /api/certificates/event/:eventId  — all certs for an event [auth]
 router.get(
@@ -24,5 +30,19 @@ router.get("/verify", certificateController.verify);
 
 // POST /api/certificates/resolve-params
 router.post("/resolve-params", authMiddleware, certificateController.resolveParams);
+
+// POST /api/certificates/resolve-params-template
+router.post(
+  "/resolve-params-template",
+  authMiddleware,
+  certificateController.resolveParamsForTemplate
+);
+
+// POST /api/certificates/issue-direct
+router.post(
+  "/issue-direct",
+  authMiddleware,
+  certificateController.issueDirect
+);
 
 export default router;

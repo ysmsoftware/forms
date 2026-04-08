@@ -4,11 +4,15 @@ import { queryKeys } from "../keys"
 
 export function useSubmissionsByEvent(
     eventId: string,
-    params?: { limit?: number; offset?: number; status?: string }
+    params?: { limit?: number; offset?: number; status?: string; page?: number }
 ) {
+    const limit = params?.limit ?? 20
+    const page = params?.page ?? 1
+    const offset = (page - 1) * limit
+    
     return useQuery({
-        queryKey: [...queryKeys.submissions.byEvent(eventId), params],
-        queryFn: () => getSubmissionsByEvent(eventId, params),
+        queryKey: [...queryKeys.submissions.byEvent(eventId), { ...params, limit, offset }],
+        queryFn: () => getSubmissionsByEvent(eventId, { ...params, limit, offset }),
         enabled: !!eventId,
         staleTime: 30_000,
     })

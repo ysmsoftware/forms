@@ -12,7 +12,7 @@ export class FileService {
         private storage: FileStorageProvider
     ) {}
 
-    private resolveFolder(context: FileContext, eventSlug?: string) {
+    private resolveFolder(context: FileContext, eventSlug?: string, contactId?: string) {
         switch (context) {
             case FileContext.FORM_SUBMISSION:
             return `events/${eventSlug}/submissions`;
@@ -25,6 +25,9 @@ export class FileService {
 
             case FileContext.USER_AVATAR:
             return `users/avatars`;
+
+            case FileContext.DIRECT_CERTIFICATE:
+            return `contacts/${contactId}/certificates`;
 
             default:
             return `misc`;
@@ -47,14 +50,14 @@ export class FileService {
         expiresInSeconds?: number;
     }) {
 
-        if(
-            params.context !== FileContext.USER_AVATAR && 
-            !params.eventId
-        ) {
+        const requiresEvent = params.context !== FileContext.USER_AVATAR
+                           && params.context !== FileContext.DIRECT_CERTIFICATE;
+
+        if (requiresEvent && !params.eventId) {
             throw new BadRequestError('eventId is required for this context');
         }
 
-       const folder = this.resolveFolder(params.context,  params.eventSlug || params.eventId);
+        const folder = this.resolveFolder(params.context, params.eventSlug || params.eventId, params.contactId);
 
      
         const uploaded = await this.storage.upload({
@@ -76,7 +79,7 @@ export class FileService {
             name: params.file.originalname,
             size: params.file.size,
             context: params.context,
-            ...(params.context !== FileContext.USER_AVATAR && { eventId: params.eventId as string }),
+            ...(params.eventId !== undefined && { eventId: params.eventId }),
             ...(params.contactId !== undefined && { contactId: params.contactId }),
              ...(params.fieldKey !== undefined && { fieldKey: params.fieldKey }),
             ...(params.visitorId !== undefined && { visitorId: params.visitorId }),

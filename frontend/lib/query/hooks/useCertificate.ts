@@ -1,10 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "../keys"
 import {
+    getAllCertificates,
+    type CertificateFilters,
+    type CertificateListResult,
     issueCertificate,
     issueCertificateBulk,
     getCertificatesByEvent,
     verifyCertificate,
+    resolveParamsForTemplate,
+    issueDirectCertificate,
+    type CertificateTemplateType,
+    type ResolveParamsForTemplateResult,
 } from "@/lib/api/certificate"
 
 /**
@@ -46,16 +53,16 @@ export function useIssueCertificateBulk(eventId?: string) {
 }
 
 /**
- * Fetch all certificates for an event.
- * Returns [] while loading so callers never need to null-check.
+ * Fetch certificates for an event with pagination support.
+ * Supports page and limit parameters for pagination.
  */
 export function useCertificatesByEvent(
     eventId: string,
-    options?: { enabled?: boolean }
+    options?: { page?: number; limit?: number; enabled?: boolean }
 ) {
     return useQuery({
-        queryKey: queryKeys.certificates.byEvent(eventId),
-        queryFn: () => getCertificatesByEvent(eventId),
+        queryKey: queryKeys.certificates.byEvent(eventId, options?.page, options?.limit),
+        queryFn: () => getCertificatesByEvent(eventId, options?.page, options?.limit),
         enabled: !!eventId && options?.enabled !== false,
     })
 }
@@ -76,4 +83,35 @@ export function useVerifyCertificate(
         staleTime: 10 * 60 * 1000, // 10 min — cert status rarely changes after GENERATED
         retry: false,              // Don't retry 404s (invalid cert ID)
     })
+}
+
+export function useResolveParamsForTemplate(
+  contactId: string | null,
+  templateType: CertificateTemplateType | null
+) {
+  return useQuery({
+    queryKey: ["certificates", "resolveTemplate", contactId, templateType],
+    queryFn: () => resolveParamsForTemplate(contactId!, templateType!),
+    enabled: !!contactId && !!templateType,
+    staleTime: 30_000,
+  })
+}
+
+export function useIssueDirectCertificate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: issueDirectCertificate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["certificates"] as any })
+    },
+  })
+}
+
+export function useAllCertificates(filters: CertificateFilters = {}) {
+  return useQuery({
+    queryKey: queryKeys.certificates.list(filters),
+    queryFn:  () => getAllCertificates(filters),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,  // keeps previous data while new page loads
+  })
 }

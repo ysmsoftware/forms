@@ -12,11 +12,11 @@ interface InternshipCertificateData {
     companyName?: string;
     companyLogoBuffer?: Buffer;       // image1.png – company logo / seal
     signatureBuffer?: Buffer;         // image2.png – authorised signatory signature
-    date?: string;                    // Issue date
-    name?: string;                    // Intern's name
-    domain?: string;                  // Technology / domain worked on
-    startDate?: string;               // Internship start date
-    endDate?: string;                 // Internship end date  (same as issue date by default)
+    date: string;                    // Issue date
+    name: string;                    // Intern's name
+    domain: string;                  // Technology / domain worked on
+    startDate: string;               // Internship start date
+    endDate: string;                 // Internship end date  (same as issue date by default)
     signatoryName?: string;           // Name shown below signature
     signatoryTitle?: string;          // Title shown below name
 }
@@ -60,9 +60,9 @@ function drawInternshipCertificate(
     // ===== RESOLVE DEFAULTS =====
 
     const companyName: string = data.companyName || 'YSM Info Solution';
-    const internName: string = data.name || '{Name}';
-    const domain: string = data.domain || '{Domain}';
-    const startDate: string = data.startDate || 'January 02, 2026';
+    const internName: string = data.name;
+    const domain: string = data.domain;
+    const startDate: string = data.startDate;
     const issueDate: string = data.date || new Date().toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric'
     });

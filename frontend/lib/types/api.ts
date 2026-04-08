@@ -86,6 +86,7 @@ export interface SubmissionAnswer {
     valueText?: string;
     valueNumber?: number;
     valueBoolean?: boolean;
+    valueJson?: unknown[];
     valueDate?: string;
     fileUrl?: string;
     valueFile?: string;
@@ -220,6 +221,8 @@ export interface AnswerInput {
     valueText?: string;
     valueNumber?: number;
     valueBoolean?: boolean;
+    valueDate?: Date;
+    valueJson?: any;
     valueFile?: string;
     fileUrl?: string;
 }

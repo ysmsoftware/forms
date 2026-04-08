@@ -7,14 +7,14 @@ import fs from 'fs';
 interface AppointmentLetterData {
     companyName?: string;
     companyAddress?: string;
-    date?: string;
-    name?: string;
+    date: string;
+    name: string;
     recipientAddress?: string;
-    position?: string;
-    startDate?: string;
+    position: string;
+    startDate: string;
     salary?: string;
-    probation?: string;
-    location?: string;
+    probation: string;
+    location: string;
 }
 
 interface DocumentSettings {
@@ -74,7 +74,7 @@ function drawAppointmentLetter(doc: typeof PDFDocument, data: AppointmentLetterD
     // ===== RECIPIENT DETAILS (Left aligned) =====
     doc.font('Helvetica-Bold').text('To,', margin, currentY);
     currentY = doc.y;
-    doc.font('Helvetica').text(data.name || 'Marjolaine Dickinson', margin, currentY);
+    doc.font('Helvetica').text(data.name, margin, currentY);
 
     currentY = doc.y + 30;
 
@@ -92,13 +92,13 @@ function drawAppointmentLetter(doc: typeof PDFDocument, data: AppointmentLetterD
     // ===== SALUTATION =====
     doc.fontSize(11)
         .font('Helvetica-Bold')
-        .text(`Dear ${data.name || 'Marjolaine Dickinson'},`, margin, currentY);
+        .text(`Dear ${data.name},`, margin, currentY);
 
     currentY = doc.y + 15;
 
     // ===== BODY PARAGRAPH 1 =====
-    const domain = data.position || 'Product Quality Producer';
-    const joinDate = data.startDate || '6/4/2026';
+    const domain = data.position;
+    const joinDate = data.startDate;
 
     doc.font('Helvetica')
         .text('This refers to the recent interviews you have had with us. We are pleased to appoint you as ', margin, currentY, {
@@ -121,7 +121,7 @@ function drawAppointmentLetter(doc: typeof PDFDocument, data: AppointmentLetterD
     const duration = data.probation || '6 months';
 
     doc.font('Helvetica')
-        .text('You will undergo training in Python Full Stack development at YSM for a period of ', margin, currentY, {
+        .text(`You will undergo training in ${domain} at YSM for a period of `, margin, currentY, {
             continued: true,
             width: contentWidth,
             align: 'justify'

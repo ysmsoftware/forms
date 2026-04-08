@@ -221,6 +221,13 @@ export function SubmissionTable({
                                     answer.valueText ??
                                     (answer.valueNumber !== undefined ? String(answer.valueNumber) : null) ??
                                     (answer.valueBoolean !== undefined ? (answer.valueBoolean ? "Yes" : "No") : null) ??
+                                    (answer.valueJson !== undefined ? (
+                                        Array.isArray(answer.valueJson)
+                                            ? answer.valueJson.join(" | ")
+                                            : typeof answer.valueJson === "object"
+                                                ? JSON.stringify(answer.valueJson)
+                                                : String(answer.valueJson)
+                                    ) : null) ??
                                     answer.valueDate ??
                                     "—"
 
@@ -307,7 +314,18 @@ export function SubmissionTable({
                                         ) : (
                                             answerKeys.map(key => {
                                                 const ans = sub.answers?.find(a => a.fieldKey === key)
-                                                const val = ans?.valueText ?? ans?.valueNumber ?? (ans?.valueBoolean !== undefined ? ans.valueBoolean.toString() : null) ?? ans?.valueDate ?? "—"
+                                                const val = ans?.valueText ??
+                                                    (ans?.valueNumber !== undefined ? String(ans.valueNumber) : null) ??
+                                                    (ans?.valueBoolean !== undefined ? ans.valueBoolean.toString() : null) ??
+                                                    (ans?.valueJson !== undefined ? (
+                                                        Array.isArray(ans.valueJson)
+                                                            ? ans.valueJson.join(", ")
+                                                            : typeof ans.valueJson === "object"
+                                                                ? JSON.stringify(ans.valueJson)
+                                                                : String(ans.valueJson)
+                                                    ) : null) ??
+                                                    ans?.valueDate ??
+                                                    "—"
                                                 return <TableCell key={key} className="truncate max-w-[150px]">{val}</TableCell>
                                             })
                                         )}
