@@ -240,8 +240,7 @@ export class PaymentService {
                         type: 'WHATSAPP',
                         template: 'PAYMENT_CONFIRMATION_MESSAGE',
                         params: {
-                            amount: payment.amount,
-                            date: payment.paidAt,
+                            amount: payment.amount / 100, // convert back to rupees
                         }
                     }).catch(err => 
                         logger.warn("Payment confirmation message failed", {
