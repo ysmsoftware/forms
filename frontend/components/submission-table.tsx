@@ -228,7 +228,14 @@ export function SubmissionTable({
                                                 ? JSON.stringify(answer.valueJson)
                                                 : String(answer.valueJson)
                                     ) : null) ??
-                                    answer.valueDate ??
+                                    (answer.valueDate ? (() => {
+                                        try {
+                                            return format(new Date(answer.valueDate), "MMM dd, yyyy")
+                                        } catch {
+                                            return answer.valueDate
+                                        }
+                                    })()
+                                        : null) ??
                                     "—"
 
                                 return (
@@ -324,7 +331,15 @@ export function SubmissionTable({
                                                                 ? JSON.stringify(ans.valueJson)
                                                                 : String(ans.valueJson)
                                                     ) : null) ??
-                                                    ans?.valueDate ??
+                                                    (ans?.valueDate
+                                                        ? (() => {
+                                                            try {
+                                                                return format(new Date(ans.valueDate), "MMM dd, yyyy 'at' hh:mm a")
+                                                            } catch {
+                                                                return ans.valueDate
+                                                            }
+                                                        })()
+                                                        : null) ??
                                                     "—"
                                                 return <TableCell key={key} className="truncate max-w-[150px]">{val}</TableCell>
                                             })
