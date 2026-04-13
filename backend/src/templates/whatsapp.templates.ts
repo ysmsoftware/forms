@@ -108,4 +108,15 @@ export const WhatsAppTemplates: {
             ]
         })
     },
+    [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE]: {
+        campaignName: "payment_confirmation_message",
+        build: (params) => ({
+            templateParams: [
+                params.name,
+                params.amount,
+                params.eventName,
+
+            ]
+        })
+    },
 }

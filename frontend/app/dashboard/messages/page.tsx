@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect } from "react"
-import { useMessages, useSendMessage } from "@/lib/query/hooks/useMessages"
+import { useMessages, useSendMessage, useRetryFailedMessages } from "@/lib/query/hooks/useMessages"
 import type { MessageType, MessageTemplate, MessageLog } from "@/lib/api/messages"
 import { cn } from "@/lib/utils"
 import {
@@ -65,6 +65,7 @@ export default function MessagesPage() {
     )
     const data = queryData?.data ?? []
     const sendMessage = useSendMessage()
+    const retryFailedMessages = useRetryFailedMessages()
 
     const filtered = useMemo(() => {
         return data
@@ -108,27 +109,15 @@ export default function MessagesPage() {
     }
 
     const handleRetryAllFailed = async () => {
-        const failedMessages = filtered.filter(m => m.status === "FAILED")
-        if (failedMessages.length === 0) return
         setRetryingAll(true)
-        let successCount = 0
-        let failCount = 0
-        for (const m of failedMessages) {
-            try {
-                await sendMessage.mutateAsync({
-                    contactId: m.contactId,
-                    eventId: m.eventId,
-                    type: m.type,
-                    template: m.template as MessageTemplate,
-                })
-                successCount++
-            } catch {
-                failCount++
-            }
+        try {
+            const result = await retryFailedMessages.mutateAsync()
+            toast.info(result.message)
+        } catch (error) {
+            toast.error("Failed to retry messages")
+        } finally {
+            setRetryingAll(false)
         }
-        setRetryingAll(false)
-        if (failCount === 0) toast.info(`${successCount} failed message${successCount !== 1 ? "s" : ""} retried successfully`)
-        else toast.error(`${successCount} retried, ${failCount} still failing`)
     }
 
     return (

@@ -107,3 +107,14 @@ export async function getMessages(params?: GetMessagesParams): Promise<{ data: M
     const json = await res.json();
     return { data: json.data ?? [], pagination: json.pagination ?? { limit: 15, offset: 0, count: 0 } };
 }
+
+export interface RetryFailedResponse {
+    success: boolean;
+    message: string;
+}
+
+export async function retryFailedMessages(): Promise<RetryFailedResponse> {
+    return apiClient<RetryFailedResponse>("/messages/retry-failed", {
+        method: "POST",
+    });
+}

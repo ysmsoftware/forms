@@ -30,6 +30,7 @@ const TEMPLATE_REQUIRED_FIELDS: Record<MessageTemplate, string[]> = {
     [MessageTemplate.INTERNSHIP_REGISTRATION_CONFIRMATION]: ["name", "eventName", "startDate", "mode", "reportingTime"],
     [MessageTemplate.REGISTRATION_SUCCESSFUL]: ["name", "eventName", "date", "time", "link"],
     [MessageTemplate.WORKSHOP_REMINDER_MESSAGE]: ["name", "eventName", "date", "time", "link"],
+    [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE]: ["name", "eventName", "amount", "date"],
 };
 
 export class MessageService {
@@ -216,5 +217,30 @@ export class MessageService {
             phone,
             options
         );
+    }
+
+    async retryFailedMessages() {
+        let failedMsg =  await this.messageRepo.findFailedMessages();
+
+        if(!failedMsg || failedMsg.length === 0) {
+            throw new NotFoundError("No Failed Messages found");
+        } 
+
+        await Promise.allSettled(
+            failedMsg.map(async (msg) => {
+                
+                await this.messageRepo.updateStatus(msg.id, "QUEUED");
+                
+                await this.messageRepo.incrementAttempt(msg.id);
+                
+                await messageQueue.add(
+                    "retry-message",
+                    { messageLogId: msg.id },
+                    { jobId: msg.id}
+                );
+            })
+        );
+
+        return failedMsg;
     }
 }

@@ -80,4 +80,16 @@ export class MessageController {
         }
     }
 
+    retryFailedMessages = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+             const failedMessages = await this.messageService.retryFailedMessages();
+
+            return res.status(200).json({ 
+                success: true, 
+                message: `Retried ${failedMessages.length} messages` 
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }

@@ -43,6 +43,8 @@ export interface IMessageRepository {
         options?: { limit?: number, offset?: number }
     ): Promise<MessageLogWithRelations[]>
 
+    findFailedMessages(): Promise<MessageLog[] | null>
+
 }
 
 
@@ -162,4 +164,17 @@ export class MessageRepository implements IMessageRepository {
         });
     }
 
-}
+    async findFailedMessages(): Promise<MessageLog[] | null> { 
+        return await prisma.messageLog.findMany({
+            where: {
+                status: "FAILED",
+                AND: [
+                    { attemptCount: { gte: 3 }, }                    
+                ]
+
+            }
+        });    
+        
+    }
+
+} 

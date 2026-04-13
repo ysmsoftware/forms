@@ -63,7 +63,7 @@ const contactService = new ContactService(contactRepo, tagRepo);
 const fileService = new FileService(fileRepo, storage);
 const formService = new FormService(formRepo, eventRepo);
 const messageService = new MessageService(messageRepo, contactRepo, eventRepo);
-const paymentService = new PaymentService(paymentRepo, eventRepo, submissionRepo, Razorpay);
+const paymentService = new PaymentService(paymentRepo, eventRepo, submissionRepo, Razorpay, messageService);
 const submissionsService = new SubmissionService(submissionRepo, formRepo, eventRepo, contactRepo);
 const tagService = new TagService(tagRepo, contactRepo);
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../keys";
-import { getMessages, sendMessage, resolveMessageParams, GetMessagesParams, SendMessageInput } from "@/lib/api/messages";
+import { getMessages, sendMessage, resolveMessageParams, retryFailedMessages, GetMessagesParams, SendMessageInput } from "@/lib/api/messages";
 
 export function useMessages(
     params?: GetMessagesParams,
@@ -33,4 +33,14 @@ export function useResolveParams(
         staleTime: 30_000,          // 30s — params for a given contact+event+template don't change fast
         retry: false,               // don't retry on validation errors
     })
+}
+
+export function useRetryFailedMessages() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: () => retryFailedMessages(),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: queryKeys.messages.all });
+        },
+    });
 }

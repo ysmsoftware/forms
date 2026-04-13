@@ -50,5 +50,10 @@ export type TemplateParamsMap = {
         date: string,
         time: string,
         link: string,
+    },
+    [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE]: {
+        name: string,
+        eventName: string,
+        amount: string,
     }
 }

@@ -5,6 +5,7 @@ import { IEventRepository } from "../repositories/event.repo";
 import { IPaymentRepository } from "../repositories/payment.repo";
 import { ISubmissionRepository } from "../repositories/submission.repo";
 import { PaymentStatus, Payment } from "@prisma/client";
+import { MessageService } from "./message.service";
 
 // ── Return types ───────────────────────────────────────────────────────────────
 
@@ -39,7 +40,8 @@ export class PaymentService {
         private paymentRepo: IPaymentRepository,
         private eventRepo: IEventRepository,
         private submissionRepo: ISubmissionRepository,
-        private razorpay: RazorpayProvider
+        private razorpay: RazorpayProvider,
+        private messageService: MessageService
     ) { }
 
 
@@ -231,7 +233,22 @@ export class PaymentService {
                     }
                 });
 
+                if(payment.contactId) {
+                    this.messageService.sendMessage({
+                        contactId: payment.contactId,
+                        eventId: payment.eventId,
+                        type: 'WHATSAPP',
+                        template: 'PAYMENT_CONFIRMATION_MESSAGE',
+                    }).catch(err => 
+                        logger.warn("Payment confirmation message failed", {
+                            paymentId: payment.id,
+                            error: err.message
+                        })
+                    );
+                }
+                
                 break;
+
             case "payment.failed":
                 if (payment.status === "SUCCESS") {
                     return;
