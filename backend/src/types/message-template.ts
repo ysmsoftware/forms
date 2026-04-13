@@ -53,7 +53,7 @@ export type TemplateParamsMap = {
     },
     [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE]: {
         name: string,
-        eventName: string,
         amount: string,
+        eventName: string,
     }
 }

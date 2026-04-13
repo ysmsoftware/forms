@@ -239,6 +239,10 @@ export class PaymentService {
                         eventId: payment.eventId,
                         type: 'WHATSAPP',
                         template: 'PAYMENT_CONFIRMATION_MESSAGE',
+                        params: {
+                            amount: payment.amount,
+                            date: payment.paidAt,
+                        }
                     }).catch(err => 
                         logger.warn("Payment confirmation message failed", {
                             paymentId: payment.id,
