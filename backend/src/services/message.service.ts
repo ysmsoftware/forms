@@ -30,7 +30,7 @@ const TEMPLATE_REQUIRED_FIELDS: Record<MessageTemplate, string[]> = {
     [MessageTemplate.INTERNSHIP_REGISTRATION_CONFIRMATION]: ["name", "eventName", "startDate", "mode", "reportingTime"],
     [MessageTemplate.REGISTRATION_SUCCESSFUL]: ["name", "eventName", "date", "time", "link"],
     [MessageTemplate.WORKSHOP_REMINDER_MESSAGE]: ["name", "eventName", "date", "time", "link"],
-    [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE]: ["name", "eventName", "amount", "date"],
+    [MessageTemplate.PAYMENT_CONFIRMATION_MESSAGE] : ['name', 'amount', 'eventName']
 };
 
 export class MessageService {
