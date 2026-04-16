@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createEvent, publishEvent, updateEvent } from "@/lib/api/events"
 import { useQueryClient } from "@tanstack/react-query"
@@ -46,6 +46,7 @@ import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/
 export default function CreateEvent() {
     const qc = useQueryClient()
     const [currentStep, setCurrentStep] = useState(1)
+    const editRef = useRef<HTMLDivElement>(null)
     const [eventData, setEventData] = useState({
         title: "",
         description: "",
@@ -438,21 +439,28 @@ export default function CreateEvent() {
                                                             <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
                                                                 {steps.map((step, index) => (
                                                                     <Draggable key={step.id} draggableId={step.id} index={index}>
-                                                                        {(provided) => (
-                                                                            <div
-                                                                                ref={provided.innerRef}
-                                                                                {...provided.draggableProps}
-                                                                                onClick={() => {
-                                                                                    setActiveStepId(step.id)
-                                                                                    setSelectedField(null)
-                                                                                }}
-                                                                                className={`p-3 rounded-lg border cursor-pointer hover:bg-accent/50 ${activeStepId === step.id ? "ring-2 ring-primary border-primary bg-accent/30" : "bg-card"}`}
-                                                                            >
+                                                                        {(provided) => {
+                                                                            return (
+                                                                                <div
+                                                                                    ref={(el) => {
+                                                                                        provided.innerRef(el);
+                                                                                        (editRef.current as any) = el;
+                                                                                    }}
+                                                                                    {...provided.draggableProps}
+                                                                                    onClick={() => {
+                                                                                        setActiveStepId(step.id)
+                                                                                        setSelectedField(null)
+                                                                                    }}
+                                                                                    className={`p-3 rounded-lg border cursor-pointer hover:bg-accent/50 ${activeStepId === step.id ? "ring-2 ring-primary border-primary bg-accent/30" : "bg-card"}`}
+                                                                                >
                                                                                 <div className="flex items-center gap-2 mb-2">
                                                                                     <div {...provided.dragHandleProps} className="mt-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></div>
                                                                                     <div className="flex-1 min-w-0">
                                                                                         {editingStepId === step.id ? (
-                                                                                            <Input autoFocus value={step.title} onChange={(e) => updateStep(step.id, { title: e.target.value })} onBlur={() => setEditingStepId(null)} onKeyDown={(e) => e.key === "Enter" && setEditingStepId(null)} className="h-7 text-sm font-medium px-2 py-1 mb-1" />
+                                                                                            <Input autoFocus value={step.title} onChange={(e) => updateStep(step.id, { title: e.target.value })} onBlur={(e) => {
+                                                                                                if (editRef.current && editRef.current.contains(e.relatedTarget as Node)) return;
+                                                                                                setEditingStepId(null);
+                                                                                            }} onKeyDown={(e) => e.key === "Enter" && setEditingStepId(null)} className="h-7 text-sm font-medium px-2 py-1 mb-1" />
                                                                                         ) : (
                                                                                             <div className="font-medium text-sm truncate" onClick={(e) => {
                                                                                                 e.stopPropagation()
@@ -468,7 +476,10 @@ export default function CreateEvent() {
                                                                                 </div>
                                                                                 <div className="pl-6">
                                                                                     {editingStepId === step.id ? (
-                                                                                        <Input value={step.description} onChange={(e) => updateStep(step.id, { description: e.target.value })} onBlur={() => setEditingStepId(null)} onKeyDown={(e) => e.key === "Enter" && setEditingStepId(null)} className="h-7 text-xs px-2 py-1 text-muted-foreground" placeholder="Optional description..." />
+                                                                                        <Input value={step.description} onChange={(e) => updateStep(step.id, { description: e.target.value })} onBlur={(e) => {
+                                                                                            if (editRef.current && editRef.current.contains(e.relatedTarget as Node)) return;
+                                                                                            setEditingStepId(null);
+                                                                                        }} onKeyDown={(e) => e.key === "Enter" && setEditingStepId(null)} className="h-7 text-xs px-2 py-1 text-muted-foreground" placeholder="Optional description..." />
                                                                                     ) : (
                                                                                         <div className="text-xs text-muted-foreground truncate" onClick={(e) => {
                                                                                             e.stopPropagation()
@@ -479,8 +490,9 @@ export default function CreateEvent() {
                                                                                     )}
                                                                                     <div className="text-[10px] text-muted-foreground/70 mt-1 uppercase tracking-wider">{step.fields.length} field{step.fields.length !== 1 ? 's' : ''}</div>
                                                                                 </div>
-                                                                            </div>
-                                                                        )}
+                                                                                </div>
+                                                                            );
+                                                                        }}
                                                                     </Draggable>
                                                                 ))}
                                                                 {provided.placeholder}

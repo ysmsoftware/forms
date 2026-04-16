@@ -26,7 +26,7 @@ const navigation = [
     { name: "Create Event", href: "/dashboard/create-event", icon: Plus },
     { name: "Manage Events", href: "/dashboard/events", icon: FormInput },
     { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-    { name: "Contact & Follow-up", href: "/dashboard/contact", icon: MessageSquare },
+    { name: "Contact", href: "/dashboard/contact", icon: MessageSquare },
     { name: "Messages", href: "/dashboard/messages", icon: Send },
     { name: "Certificates", href: "/dashboard/certificates", icon: Award },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },

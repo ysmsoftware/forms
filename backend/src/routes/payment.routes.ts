@@ -9,7 +9,9 @@ router.post("/verify", paymentController.verifyPayment);
 router.post('/retry', paymentController.retryPayment)
 // router.post('/webhook', paymentController.handleWebhook);
 
+
 router.get('/events/:eventId', paymentController.getPaymentsByEvent);
+router.get('/', paymentController.getAllPayment);
 router.get('/:paymentId', paymentController.getPaymentById);
 router.post("/:paymentId/cancel", paymentController.cancelPayment);
 

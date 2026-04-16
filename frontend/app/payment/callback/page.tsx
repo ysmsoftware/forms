@@ -142,7 +142,7 @@ function PaymentCallbackContent() {
                 </CardHeader>
                 <CardContent className="text-center space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        You will receive a confirmation from YSM Infosolutions shortly.
+                        You will receive a confirmation from YSM Info Solution shortly.
                     </p>
                     {returnUrl && (
                         <Button asChild className="w-full">

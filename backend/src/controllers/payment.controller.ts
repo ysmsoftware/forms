@@ -58,16 +58,6 @@ export class PaymentController {
         }
     }
 
-
-    /*
-        app.js will have 
-        app.post(
-            "/api/payments/webhook",
-            express.raw({ type: "application/json" }),
-            paymentController.handleWebhook
-        );
-
-    */
     handleWebhook = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const signature = req.headers['x-razorpay-signature'] as string;
@@ -168,6 +158,36 @@ export class PaymentController {
 
         } catch (error) {
             next(error);
+        }
+    }
+
+    getAllPayment = async(req: Request, res: Response, next: NextFunction) => {
+        try {
+            const eventId = req.query.eventId as string;
+            const contactId = req.query.contactId as string;
+            const razorpayPaymentId = req.query.razorpayPaymentId as string;
+            const cursor = req.query.cursor as string;
+            const limit = Math.min(
+                parseInt(req.query.limit as string) || 50, 100
+            );
+
+            const status = req.query.status && 
+                    Object.values(PaymentStatus).includes(req.query.status as PaymentStatus)
+                        ? (req.query.status as PaymentStatus)
+                        : undefined;
+
+            logger.info("Fetch Payments request", {eventId, contactId, razorpayPaymentId, requestId: req.id });
+
+            const  result = await this.paymentService.getAllPayments({ eventId, contactId, razorpayPaymentId, cursor, status, limit});
+
+            
+            res.status(200).json({
+                success: true,
+                data: result
+            });
+
+        } catch(err) {
+            next(err);
         }
     }
     

@@ -148,7 +148,7 @@ export function parsePattern(pattern: string): PatternBuilderState {
     // Exact matches for known presets
     if (pattern === "^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$")
         return { selectedOptions: ["url"] }
-    if (pattern === "^[6-9]\\d{9}$")
+    if (pattern === "^[0-9]\\d{10}$")
         return { selectedOptions: ["phoneNumber"] }
     if (pattern === "^\\S+$")
         return { selectedOptions: ["noSpaces"] }

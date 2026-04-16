@@ -95,6 +95,7 @@ export function useFormBuilder(initialFields: LocalField[] = [], initialSteps: L
         }
         setSteps(prev => [...prev, newStep])
         setActiveStepId(newStep.id)
+        setEditingStepId(newStep.id)
         setSelectedField(null)
     }
 

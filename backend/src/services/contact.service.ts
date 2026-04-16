@@ -1,5 +1,11 @@
+import { PaymentStatus } from "@prisma/client";
 import { BadRequestError, ConflictError, NotFoundError } from "../errors/http-errors";
+import { ICertificateRepository } from "../repositories/certificate.repo";
 import { ContactWithRelations, IContactRepository } from "../repositories/contact.repo";
+import { IEventRepository } from "../repositories/event.repo";
+import { IFileRepository } from "../repositories/file.repo";
+import { IMessageRepository } from "../repositories/message.repo";
+import { IPaymentRepository } from "../repositories/payment.repo";
 import { ITagRepository } from "../repositories/tag.repo";
 
 
@@ -7,7 +13,12 @@ export class ContactService {
 
     constructor(
         private contactRepo: IContactRepository,
-        private tagRepo: ITagRepository
+        private eventRepo: IEventRepository,
+        private certificateRepo: ICertificateRepository,
+        private paymentRepo: IPaymentRepository,
+        private messageRepo: IMessageRepository,
+        private tagRepo: ITagRepository,
+        private fileRepo: IFileRepository,
     ) { }
 
     async createContact(input: {
@@ -67,6 +78,10 @@ export class ContactService {
     }
 
     async restoreContact(id: string) {
+        const contact = await this.contactRepo.findByIdIncludingDeleted(id);
+        if(!contact) {
+            throw new NotFoundError("Contact not found");
+        }
         await this.contactRepo.restoreContact(id);
     }
 
@@ -101,4 +116,84 @@ export class ContactService {
 
         return this.contactRepo.findEventIdsByContactId(contactId);
     }
+    
+    async getContactEvents(id: string) {
+
+        await this.contactRepo.findByIdOrThrow(id);
+        
+        const events = await this.eventRepo.findByContactId(id);
+        return { 
+            events,
+            total: events.length
+        }
+    }
+
+    async getContactCertificates(id: string) {
+        
+        await this.contactRepo.findByIdOrThrow(id);
+    
+        const certificates = await this.certificateRepo.findByContactId(id);
+
+        return {
+            certificates,
+            total: certificates.length
+        }
+        
+    }
+
+    async getContactPayments(id: string, params?: { limit?: number; cursor?: string; status?: string }) {
+        await this.contactRepo.findByIdOrThrow(id);
+        
+        const payments = await this.paymentRepo.allPayments({ 
+            contactId: id, 
+            limit: params?.limit ?? 20,
+            ...(params?.status && { status: params.status as PaymentStatus }),
+            ...(params?.cursor && { cursor: params.cursor }), 
+        });
+        
+        return {
+            payments,
+            total: payments.items.length ?? 0
+        }
+
+    }
+
+    async getContactMessages(id: string, options: { limit?: number; offset?: number; }) { 
+        await this.contactRepo.findByIdOrThrow(id);
+
+        const messages = await this.messageRepo.getMessages({ 
+            contactId: id,
+            options,
+        })
+
+        return {
+            messages,
+            total: messages.length ?? 0
+        }
+    }
+
+    async getContactTags(id: string) {
+        await this.contactRepo.findByIdOrThrow(id);
+
+        const tags = await this.tagRepo.findTagsByContactIds(id);
+        
+        return {
+            tags,
+            total: tags.length
+        };
+    }
+
+    async getContactFiles(id: string) {
+
+        await this.contactRepo.findByIdOrThrow(id);
+
+        const files = await this.fileRepo.findByContactId(id);
+
+        return {
+            files,
+            total: files.length ?? 0
+        }
+
+    }
+
 }

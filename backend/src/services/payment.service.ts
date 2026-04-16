@@ -44,7 +44,6 @@ export class PaymentService {
         private messageService: MessageService
     ) { }
 
-
     async createOrder(params: { submissionId: string; }): Promise<{
         orderId: string;
         amount: number;
@@ -354,29 +353,6 @@ export class PaymentService {
         await this.paymentRepo.markCancelled(paymentId);
     }
 
-    async getPaymentsByEvent(params: {
-        eventId: string;
-        limit: number;
-        cursor?: string;
-        status?: PaymentStatus | undefined;
-    }): Promise<PaymentListResult> {
-
-        const event = await this.eventRepo.findById(params.eventId);
-
-        if (!event) {
-            throw new NotFoundError("Event not found");
-        }
-        const limit = Math.min(params.limit ?? 50, 100);
-        const payments = await this.paymentRepo.findByEventIdPaginated({
-            eventId: params.eventId,
-            limit,
-            ...(params.cursor && { cursor: params.cursor }),
-            ...(params.status && { status: params.status })
-        });
-
-        return payments;
-    }
-
     async getPaymentById(paymentId: string): Promise<PaymentDetailResult> {
 
         const payment = await this.paymentRepo.findById(paymentId);
@@ -404,4 +380,48 @@ export class PaymentService {
         }
     }
 
+    async getPaymentsByEvent(params: {
+        eventId: string;
+        limit: number;
+        cursor?: string;
+        status?: PaymentStatus | undefined;
+    }): Promise<PaymentListResult> {
+
+        const event = await this.eventRepo.findById(params.eventId);
+
+        if (!event) {
+            throw new NotFoundError("Event not found");
+        }
+        const limit = Math.min(params.limit ?? 50, 100);
+        const payments = await this.paymentRepo.findByEventIdPaginated({
+            eventId: params.eventId,
+            limit,
+            ...(params.cursor && { cursor: params.cursor }),
+            ...(params.status && { status: params.status })
+        });
+
+        return payments;
+    }
+
+    async getAllPayments(params: {
+        eventId?: string,
+        contactId?: string,
+        razorpayPaymentId?: string,
+        limit: number,
+        cursor?: string;
+        status?: PaymentStatus  | undefined
+    }): Promise<PaymentListResult> {
+
+        const limit = Math.min(params.limit ?? 50, 100);
+        
+        const payments = await this.paymentRepo.allPayments({
+            ...(params.eventId && { eventId: params.eventId }),
+            ...(params.contactId && { contactId: params.contactId }),
+            ...(params.razorpayPaymentId && { razorpayPaymentId: params.razorpayPaymentId }),
+            limit,
+            ...(params.cursor && { cursor: params.cursor }),
+            ...(params.status && { status: params.status })
+        })
+        return payments;
+    }
 }

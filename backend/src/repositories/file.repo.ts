@@ -24,6 +24,7 @@ export interface IFileRepository {
     findByEventId(eventId: string): Promise<FileAsset[]>;
 
     deleteById(id: string): Promise<FileAsset | null>;
+
 }
 
 

@@ -35,9 +35,8 @@ export interface IPaymentRepository {
 
     markCancelled(paymentId: string): Promise<Payment>;
 
-
     findByEventId(eventId: string): Promise<Payment[]>;
-
+ 
     updateForRetry(data: {
         submissionId: string;
         razorpayOrderId: string;        
@@ -49,6 +48,15 @@ export interface IPaymentRepository {
         cursor?: string;
         status?: PaymentStatus;
     }): Promise<{ items: Payment[]; nextCursor: string | null }>;
+
+    allPayments(params: {
+        eventId?: string,
+        contactId?: string,
+        razorpayPaymentId?: string,
+        limit: number,
+        cursor?: string;
+        status?: PaymentStatus; 
+    }): Promise<{ items: Payment[]; nextCursor: string | null}>;
 }
 
 
@@ -74,7 +82,6 @@ export class PaymentRepository implements IPaymentRepository {
             }
          });
     }
-
 
     async findBySubmissionId(submissionId: string): Promise<Payment | null> {
         return await prisma.payment.findUnique({
@@ -175,10 +182,8 @@ export class PaymentRepository implements IPaymentRepository {
             },
             orderBy: { createdAt: "desc" },
             take: params.limit + 1,
-            ...(params.cursor && {
-                cursor: { id: params.cursor },
-                skip: 1
-            }),
+            ...(params.cursor && { cursor: { id: params.cursor } }),
+            ...(params.cursor && { skip: 1 }),
         });
 
         let nextCursor: string | null = null;
@@ -205,4 +210,34 @@ export class PaymentRepository implements IPaymentRepository {
         })
     }
 
+    async allPayments(params: {
+        eventId?: string,
+        contactId?: string,
+        razorpayPaymentId?: string,
+        limit: number,
+        cursor?: string;
+        status?: PaymentStatus; 
+    }): Promise<{ items: Payment[]; nextCursor: string | null}> {
+
+        const items = await prisma.payment.findMany({
+            where: {
+                ...(params.eventId && { eventId: params.eventId }),
+                ...(params.contactId && { contactId: params.contactId }),
+                ...(params.razorpayPaymentId && { razorpayPaymentId: params.razorpayPaymentId }),
+                ...(params.status && { status: params.status }),
+            },
+            orderBy: { createdAt: "desc" },
+            take: params.limit + 1,
+            ...(params.cursor && { cursor: { id: params.cursor } }),
+            ...(params.cursor && { skip: 1 }),
+        });
+
+        let nextCursor: string | null = null;
+        if(items.length > params.limit) {
+            const nextItem = items.pop();
+            nextCursor = nextItem!.id;
+        }
+
+        return { items, nextCursor } 
+    }
 }

@@ -8,22 +8,22 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-    title: "Forms YSM Infosolutions - Dynamic Data Collection Platform",
+    title: "Forms YSM Infosolution - Dynamic Data Collection Platform",
     description: "Create and manage events with custom feedback forms and payment collection",
     generator: 'Austin Makasare',
     openGraph: {
         type: 'website',
         locale: 'en_US',
-        url: 'https://forms.ysminfosolutions.com/',
-        title: "Forms YSM Infosolutions - Dynamic Data Collection Platform",
+        url: 'https://forms.ysminfosolution.com/',
+        title: "Forms YSM Infosolution - Dynamic Data Collection Platform",
         description: "Create and manage events with custom feedback forms and payment collection",
-        siteName: 'forms.ysminfosolutions.com',
+        siteName: 'forms.ysminfosolution.com',
         images: [
             {
                 url: '/preview.png',
                 width: 1200,
                 height: 630,
-                alt: "Forms YSM Infosolutions - Dynamic Data Collection Platform",
+                alt: "Forms YSM Infosolution - Dynamic Data Collection Platform",
             },
         ],
     },

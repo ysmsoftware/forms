@@ -44,6 +44,13 @@ export default function PublicForm() {
     const visitFiredRef = useRef(false)
     const startFiredRef = useRef(false)
 
+    // Pattern-specific error messages
+    const patternMessages: Record<string, string> = {
+        "^[A-Za-z ]+$": "Must contain only letters and spaces.",
+        "^[6-9]\\d{9}$": "Must be a 10-digit number starting with 6, 7, 8, or 9.",
+        "^[0-9]+$": "Must contain only numbers.",
+    }
+
     // Auto-transition: payment confirmed → success screen
     // MUST be declared here — before any conditional early returns (Rules of Hooks)
     useEffect(() => {
@@ -110,7 +117,9 @@ export default function PublicForm() {
         ? (steps[currentStep]?.fields ?? [])
         : fields
 
-    const handleFieldChange = (fieldKey: string, value: any) => {
+    const hasCurrentStepErrors = currentStepFields.some(f => fieldErrors[f.key])
+
+    const handleFieldChange = (fieldKey: string, value: any, field: FormField) => {
         // Fire startSubmission exactly ONCE on first interaction
         if (!startFiredRef.current) {
             startFiredRef.current = true
@@ -124,6 +133,11 @@ export default function PublicForm() {
                 delete next[fieldKey]
                 return next
             })
+        }
+        // Re-validate this field in real-time
+        const errors = validateFields([field])
+        if (errors[fieldKey]) {
+            setFieldErrors(prev => ({ ...prev, [fieldKey]: errors[fieldKey] }))
         }
     }
 
@@ -163,7 +177,7 @@ export default function PublicForm() {
                 if (v?.pattern) {
                     try {
                         if (!new RegExp(v.pattern).test(str)) {
-                            errors[field.key] = `Invalid format.`
+                            errors[field.key] = patternMessages[v.pattern] || "Does not match the required format."
                             continue
                         }
                     } catch { /* invalid regex — skip */ }
@@ -316,6 +330,7 @@ export default function PublicForm() {
 
     const renderField = (field: FormField) => {
         const value = formValues[field.key] || ""
+        const hasError = !!fieldErrors[field.key]
 
         switch (field.type) {
             case "TEXT":
@@ -326,8 +341,9 @@ export default function PublicForm() {
                     <Input
                         type={field.type.toLowerCase()}
                         value={value}
-                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                        onChange={(e) => handleFieldChange(field.key, e.target.value, field)}
                         required={field.required}
+                        className={hasError ? "border-destructive focus:border-destructive" : ""}
                     />
                 )
 
@@ -335,9 +351,10 @@ export default function PublicForm() {
                 return (
                     <Textarea
                         value={value}
-                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                        onChange={(e) => handleFieldChange(field.key, e.target.value, field)}
                         required={field.required}
                         rows={4}
+                        className={hasError ? "border-destructive focus:border-destructive" : ""}
                     />
                 )
 
@@ -348,8 +365,8 @@ export default function PublicForm() {
                     : (field.options as any)?.choices ?? []
 
                 return (
-                    <Select value={value} onValueChange={(val) => handleFieldChange(field.key, val)} required={field.required}>
-                        <SelectTrigger>
+                    <Select value={value} onValueChange={(val) => handleFieldChange(field.key, val, field)} required={field.required}>
+                        <SelectTrigger className={hasError ? "border-destructive focus:border-destructive" : ""}>
                             <SelectValue placeholder="Select an option" />
                         </SelectTrigger>
                         <SelectContent>
@@ -369,7 +386,7 @@ export default function PublicForm() {
                     : (field.options as any)?.choices ?? []
 
                 return (
-                    <RadioGroup value={value} onValueChange={(val) => handleFieldChange(field.key, val)} required={field.required}>
+                    <RadioGroup value={value} onValueChange={(val) => handleFieldChange(field.key, val, field)} required={field.required}>
                         {radioChoices.map((option: string) => (
                             <div key={option} className="flex items-center space-x-2">
                                 <RadioGroupItem value={option} id={`${field.id}-${option}`} />
@@ -397,7 +414,7 @@ export default function PublicForm() {
                                         const newValues = checked
                                             ? [...selectedValues, option]
                                             : selectedValues.filter((v: string) => v !== option)
-                                        handleFieldChange(field.key, newValues)
+                                        handleFieldChange(field.key, newValues, field)
                                     }}
                                 />
                                 <Label htmlFor={`${field.id}-${option}`}>{option}</Label>
@@ -414,7 +431,7 @@ export default function PublicForm() {
                         eventSlug={slug}
                         visitorId={visitorUuid}
                         value={value}
-                        onChange={(url) => handleFieldChange(field.key, url)}
+                        onChange={(url) => handleFieldChange(field.key, url, field)}
                         disabled={isSubmitting}
                     />
                 )
@@ -604,7 +621,7 @@ export default function PublicForm() {
                             </p>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            A confirmation will be sent to you from YSM Infosolutions shortly.
+                            A confirmation will be sent to you from YSM Info Solution shortly.
                         </p>
                     </CardContent>
                 </Card>
@@ -723,11 +740,11 @@ export default function PublicForm() {
                                                 </Button>
                                             )}
                                             {currentStep < totalSteps - 1 ? (
-                                                <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto ml-auto">
+                                                <Button type="button" onClick={handleNextStep} disabled={hasCurrentStepErrors} className="w-full sm:w-auto ml-auto">
                                                     Next Step &rarr;
                                                 </Button>
                                             ) : (
-                                                <Button type="button" onClick={() => handleSubmit()} className="w-full sm:w-auto ml-auto" disabled={isSubmitting} size="lg">
+                                                <Button type="button" onClick={() => handleSubmit()} className="w-full sm:w-auto ml-auto" disabled={isSubmitting || hasCurrentStepErrors} size="lg">
                                                     {isSubmitting ? (
                                                         <>
                                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

@@ -48,6 +48,12 @@ export interface IContactRepository {
 
     findEventIdsByContactId(contactId: string): Promise<string[]>;
 
+    findByIdOrThrow(id: string): Promise<Contact>;
+
+    existsById(id: string): Promise<boolean>;
+
+    findByIdIncludingDeleted(id: string): Promise<Contact | null>;
+
     listContacts(params: {
         search?: string;
         lastId?: string;
@@ -166,6 +172,26 @@ export class ContactRepository implements IContactRepository {
             select: { eventId: true },
         });
         return rows.map((r) => r.eventId);
+    }
+
+    async findByIdOrThrow(id: string): Promise<Contact> {
+        return await prisma.contact.findUniqueOrThrow({
+            where: { id, isDeleted: false }
+        })
+    }
+
+    async existsById(id: string): Promise<boolean> {
+        const record = await prisma.contact.findUnique({
+            where: { id, isDeleted: false }
+        })
+
+        return record !== null;
+    }
+
+    async findByIdIncludingDeleted(id: string): Promise<Contact | null> {
+        return await prisma.contact.findUnique({
+            where: { id }
+        })
     }
 
     async listContacts(params: { 

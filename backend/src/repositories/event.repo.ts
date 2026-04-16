@@ -19,12 +19,15 @@ export interface IEventRepository {
     update(id: string, data: any): Promise<EventWithConfig>;
     findBySlug(slug: string): Promise<EventWithConfig | null>;
     findById(id: string): Promise<EventWithConfig | null>;
+    findByIds(id: string[]): Promise<EventWithConfig[]>;
     findByUser(userId: string): Promise<EventWithConfig[]>;
+    findByContactId(contactId: string): Promise<EventWithConfig[]>;
     publish(id: string): Promise<EventWithConfig>;
     close(id: string): Promise<EventWithConfig>;
     markAsDeleted(id: string): Promise<EventWithConfig>;
     findActiveEvents(): Promise<EventWithConfig[]>;
     getEventPaymentConfig(eventId: string): Promise<PaymentConfig | null>;
+    
 }
 
 export class EventRepository implements IEventRepository {
@@ -57,9 +60,32 @@ export class EventRepository implements IEventRepository {
         }) as Promise<EventWithConfig | null>;
     }
 
+    async findByIds(ids: string[]): Promise<EventWithConfig[]> {
+        return prisma.event.findMany({
+            where: { 
+                id: { in: ids}, 
+                isDeleted: false 
+            },
+            include: { paymentConfig: true}
+        }) as Promise<EventWithConfig[]>;
+    }
+
     async findByUser(userId: string): Promise<EventWithConfig[]> {
         return prisma.event.findMany({
             where: { userId, isDeleted: false },
+            include: { paymentConfig: true },
+            orderBy: { createdAt: "desc" }
+        }) as Promise<EventWithConfig[]>;
+    }
+
+    async findByContactId(contactId: string): Promise<EventWithConfig[]> {
+        return prisma.event.findMany({
+            where: {
+                isDeleted: false,
+                contactEvents: {
+                    some: { contactId }
+                }
+            },
             include: { paymentConfig: true },
             orderBy: { createdAt: "desc" }
         }) as Promise<EventWithConfig[]>;

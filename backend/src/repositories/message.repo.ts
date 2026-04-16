@@ -35,12 +35,13 @@ export interface IMessageRepository {
 
     findById(id: string): Promise<MessageLogWithRelations | null>;
 
-    getMessages(
+    getMessages(params: {
         contactId?: string,
         eventId?: string,
         email?: string,
         phone?: string,
         options?: { limit?: number, offset?: number }
+    }
     ): Promise<MessageLogWithRelations[]>
 
     findFailedMessages(): Promise<MessageLog[] | null>
@@ -116,30 +117,28 @@ export class MessageRepository implements IMessageRepository {
         })
     }
 
-    async getMessages(
+    async getMessages(params: {
         contactId?: string,
         eventId?: string,
         email?: string,
         phone?: string,
-        options?: {
-            limit?: number; offset?: number;
-
-        }): Promise<MessageLogWithRelations[]> {
+        options?: { limit?: number; offset?: number; }
+    }): Promise<MessageLogWithRelations[]> {
 
 
         const filters = [
-            ...(contactId ? [{ contactId }] : []),
-            ...(eventId ? [{ eventId }] : []),
-            ...(email ? [{ contact: { email } }] : []),
-            ...(phone ? [{ contact: { phone } }] : []),
+            ...(params.contactId ? [{ contactId: params.contactId }] : []),
+            ...(params.eventId ? [{ eventId: params.eventId }] : []),
+            ...(params.email ? [{ contact: { email: params.email } }] : []),
+            ...(params.phone ? [{ contact: { phone: params.phone } }] : []),
         ]
 
         return prisma.messageLog.findMany({
             where: {
-                ...(contactId && { contactId }),
-                ...(eventId && { eventId }),
-                ...(email && { contact: { email } }),
-                ...(phone && { contact: { phone } }),
+                ...(params.contactId && { contactId: params.contactId }),
+                ...(params.eventId && { eventId: params.eventId }),
+                ...(params.email && { contact: { email: params.email } }),
+                ...(params.phone && { contact: { phone: params.phone } }),
                 isDeleted: false
             },
             include: {
@@ -159,8 +158,8 @@ export class MessageRepository implements IMessageRepository {
                 }
             },
             orderBy: { createdAt: "desc" },
-            take: options?.limit ?? 20,
-            skip: options?.offset ?? 0,
+            take: params.options?.limit ?? 20,
+            skip: params.options?.offset ?? 0,
         });
     }
 

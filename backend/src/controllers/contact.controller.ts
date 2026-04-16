@@ -2,7 +2,6 @@ import { Request, NextFunction, Response } from "express";
 import { ContactService } from "../services/contact.service";
 import { BadRequestError } from "../errors/http-errors";
 
-
 export class ContactController {
 
     constructor( private contactService: ContactService) { }
@@ -13,7 +12,7 @@ export class ContactController {
             const { name, email, phone } = req.body;
 
             if(!email && !phone) {
-                throw new BadRequestError('Email or phone required');
+                throw new BadRequestError('name, Email or phone required to create a contact');
             }
 
             const result = await this.contactService.createContact({ name, email, phone });
@@ -32,6 +31,10 @@ export class ContactController {
         try {
             const id = req.params.id as string;
             const { name, email, phone } = req.body;
+            
+            if (!name && !email && !phone) {
+                throw new BadRequestError("At least one field required to update");
+            }
 
             const result = await this.contactService.updateContact(id, { name, email, phone, })
 
@@ -107,9 +110,14 @@ export class ContactController {
 
     getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const id = req.params.id as string;
-            const result = await this.contactService.getContactById(id);
+            const contactId = req.params.id as string;
+            if (!contactId) {
+                throw new BadRequestError("contactId is required");
+            }
+            const result = await this.contactService.getContactById(contactId);
+
             return res.json({ success: true, data: result });
+
         } catch (error) {
             next(error);
         }
@@ -117,9 +125,9 @@ export class ContactController {
 
     getEvents = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const id = req.params.id as string;
-            
-            const result = await this.contactService.getContactEventIds(id);
+            const contactId = req.params.id as string;
+        
+            const result = await this.contactService.getContactEvents(contactId);
 
             return res.json({
                 success: true,
@@ -130,4 +138,88 @@ export class ContactController {
             next(error);
         }
     }
+
+    getCertificates = async (req: Request, res: Response, next: NextFunction) => {
+        try{
+            const contactId = req.params.id as string;
+
+            const result = await this.contactService.getContactCertificates(contactId);
+
+            return res.json({
+                success: true,
+                data: result
+            });
+
+        } catch(error) {
+            next(error)
+        }
+    }
+
+    getPayments = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const contactId = req.params.id as string
+            
+            const limit  = parseInt(req.query.limit as string) || 20;
+            const cursor = req.query.cursor as string;
+            const status = req.query.status as string;
+
+            const result = await this.contactService.getContactPayments(contactId, { limit, cursor, status });
+
+            return res.json({
+                success: true,
+                data: result
+            });
+
+        } catch(error) {
+            next(error);
+        }
+    } 
+
+    getMessages  = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const contactId = req.params.id as string
+            const limit  = parseInt(req.query.limit as string) || 20;
+            const offset = parseInt(req.query.offset as string) || 0;
+
+            const result = await this.contactService.getContactMessages(contactId, { limit, offset, });
+
+            return res.json({
+                success: true,
+                data: result
+            });
+
+        } catch(error) {
+            next(error);
+        }
+    } 
+
+    getTags = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const contactId = req.params.id as string
+            
+            const result = await this.contactService.getContactTags(contactId);
+
+            return res.json({
+                success: true,
+                data: result
+            })
+        } catch(error) {
+            next(error);
+        }
+    } 
+
+    getFiles = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const contactId = req.params.id as string
+
+            const result = await this.contactService.getContactFiles(contactId);
+            
+            return res.json({
+                success: true,
+                data: result
+            })
+        } catch(error) {
+            next(error);
+        }
+    } 
 }

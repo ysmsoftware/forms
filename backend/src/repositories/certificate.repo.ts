@@ -59,6 +59,8 @@ export interface ICertificateRepository {
 
     findByEventId(eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }>;
 
+    findByContactId(contactId: string): Promise<CertificateWithRelations[]>;
+
     updateStatus(
         id: string,
         status: CertificateStatus,
@@ -185,5 +187,13 @@ export class CertificateRepository implements ICertificateRepository {
             ...(status === "GENERATED" && { issuedAt: new Date() })
            }
         })
+    }
+    
+    async findByContactId(contactId: string): Promise<CertificateWithRelations[]> {
+        return await prisma.certificate.findMany({
+            where: { contactId, isDeleted: false },
+            include: this.certInclude
+        })
+
     }
 }

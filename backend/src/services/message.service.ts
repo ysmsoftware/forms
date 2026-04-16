@@ -210,13 +210,14 @@ export class MessageService {
         if (limit !== undefined) options.limit = limit;
         if (offset !== undefined) options.offset = offset;
 
-        return this.messageRepo.getMessages(
-            contactId,
-            eventId,
-            email,
-            phone,
-            options
-        );
+        return this.messageRepo.getMessages( {
+            ...(contactId && { contactId }),
+            ...(eventId && { eventId }),
+            ...(email && { email }),
+            ...(phone && { phone }),
+            ...(limit && { limit }),
+            ...(offset && { offset }),
+        });
     }
 
     async retryFailedMessages() {

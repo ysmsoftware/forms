@@ -20,6 +20,7 @@ export interface ITagRepository {
     ): Promise<void>;
 
     findContactIdsByTag(tagId: string): Promise<ContactTag[]>;
+    findTagsByContactIds(contactId: string): Promise<ContactTag[]>;
 
 }
 
@@ -64,6 +65,14 @@ export class TagRepository implements ITagRepository {
         return await prisma.contactTag.findMany({
             where:{
                 tagId
+            }
+        })
+    }
+
+    async findTagsByContactIds(contactId: string): Promise<ContactTag[]> {
+        return await prisma.contactTag.findMany({
+            where: {
+                 contactId
             }
         })
     }
