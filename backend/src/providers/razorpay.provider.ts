@@ -57,12 +57,15 @@ export class RazorpayProvider {
 
         const body = params.razorpayOrderId + "|" + params.razorpayPaymentId;
 
-        const exprectedSignature  = crypto
+        const expectedSignature  = crypto
             .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
             .update(body)
             .digest("hex");
 
-        return exprectedSignature === params.razorpaySignature;
+        return crypto.timingSafeEqual(
+            Buffer.from(expectedSignature),
+            Buffer.from(params.razorpaySignature)
+        );
 
     }
 

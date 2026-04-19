@@ -6,6 +6,7 @@ import { EventService } from './event.service';
 import { IContactRepository } from '../repositories/contact.repo';
 import { CertificateTemplateType, CertificateStatus } from '@prisma/client';
 import { CertificateWithRelations } from '../repositories/certificate.repo';
+import pLimit from 'p-limit';
 
 
 type IssueResult =
@@ -27,20 +28,21 @@ export class CertificateService {
 
         const results: IssueResult[] = [];
         const batchSize = 50;
+        const limit = pLimit(5);
 
         for (let i = 0; i < submissionIds.length; i += batchSize) {
 
             const batch = submissionIds.slice(i, i + batchSize);
 
             const batchResults = await Promise.all(
-                batch.map(async (submissionId) => {
+                batch.map(submissionId => limit(async () => {
                     try {
                         const data = await this.issueCertificate(submissionId, paramOverrides);
                         return { submissionId, success: true as const, data };
                     } catch (error) {
                         return { submissionId, success: false as const, error: error as Error };
                     }
-                })
+                }))
             );
 
             results.push(...batchResults);
@@ -112,6 +114,7 @@ export class CertificateService {
         }
 
     }
+    
     async getAll(filters: {
         eventId?: string;
         status?: CertificateStatus;

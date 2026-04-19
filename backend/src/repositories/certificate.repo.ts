@@ -59,7 +59,7 @@ export interface ICertificateRepository {
 
     findByEventId(eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }>;
 
-    findByContactId(contactId: string): Promise<CertificateWithRelations[]>;
+    findByContactId(contactId: string, limit: number, cursor?: string): Promise<{ items: CertificateWithRelations[], total: number, nextCursor: string | null }>;
 
     updateStatus(
         id: string,
@@ -189,11 +189,26 @@ export class CertificateRepository implements ICertificateRepository {
         })
     }
     
-    async findByContactId(contactId: string): Promise<CertificateWithRelations[]> {
-        return await prisma.certificate.findMany({
+    async findByContactId(contactId: string, limit: number, cursor?: string): Promise<{ items: CertificateWithRelations[], total: number, nextCursor: string | null }> {
+        const items = await prisma.certificate.findMany({
             where: { contactId, isDeleted: false },
-            include: this.certInclude
-        })
+            include: this.certInclude,
+            orderBy: { issuedAt: 'desc' },
+            take: limit + 1,
+            ...(cursor && { cursor: { id: cursor }, skip: 1 })
+        });
+
+        const total = await prisma.certificate.count({
+            where: { contactId, isDeleted: false }
+        });
+
+        let nextCursor: string | null = null;
+        if (items.length > limit) {
+            const nextItem = items.pop();
+            nextCursor = nextItem!.id;
+        }
+
+        return { items, total, nextCursor };
 
     }
 }

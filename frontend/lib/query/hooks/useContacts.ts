@@ -1,5 +1,14 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { listContacts } from "@/lib/api/contacts"
+import { 
+    listContacts,
+    getContact,
+    getContactEvents,
+    getContactCertificates,
+    getContactPayments,
+    getContactMessages,
+    getContactTags,
+    getContactFiles,
+} from "@/lib/api/contacts"
 import { assignTag, removeTag, createTag } from "@/lib/api/tags"
 import { queryKeys } from "../keys"
 import { listTags } from "@/lib/api/tags"
@@ -50,5 +59,63 @@ export function useTags() {
         queryKey: queryKeys.tags.list(),
         queryFn: listTags,
         staleTime: 1000 * 60 * 5, // tags change rarely — cache 5 min
+    })
+}
+
+// ========== Contact Detail Hooks ==========
+
+export function useContactDetail(id: string) {
+    return useQuery({
+        queryKey: queryKeys.contacts.detail(id),
+        queryFn: () => getContact(id),
+        enabled: !!id,
+    })
+}
+
+export function useContactEvents(id: string) {
+    return useQuery({
+        queryKey: queryKeys.contacts.events(id),
+        queryFn: () => getContactEvents(id),
+        enabled: !!id,
+    })
+}
+
+export function useContactCertificates(id: string) {
+    return useQuery({
+        queryKey: queryKeys.contacts.certificates(id),
+        queryFn: () => getContactCertificates(id),
+        enabled: !!id,
+    })
+}
+
+export function useContactPayments(id: string, params?: { limit?: number; cursor?: string; status?: string }) {
+    return useQuery({
+        queryKey: queryKeys.contacts.payments(id, params),
+        queryFn: () => getContactPayments(id, params),
+        enabled: !!id,
+    })
+}
+
+export function useContactMessages(id: string, params?: { limit?: number; offset?: number }) {
+    return useQuery({
+        queryKey: queryKeys.contacts.messages(id, params),
+        queryFn: () => getContactMessages(id, params),
+        enabled: !!id,
+    })
+}
+
+export function useContactTags(id: string) {
+    return useQuery({
+        queryKey: queryKeys.contacts.tags(id),
+        queryFn: () => getContactTags(id),
+        enabled: !!id,
+    })
+}
+
+export function useContactFiles(id: string) {
+    return useQuery({
+        queryKey: queryKeys.contacts.files(id),
+        queryFn: () => getContactFiles(id),
+        enabled: !!id,
     })
 }

@@ -44,7 +44,7 @@ export class CertifcateWorker {
         worker.on('failed', (job, err) => {
             logger.error(`Certificate generation failed`, {
                 jobId: job?.id,
-                certficateId: job?.data?.certificateId,
+                certificateId: job?.data?.certificateId,
                 error: err.message
             });
         });

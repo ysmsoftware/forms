@@ -69,7 +69,7 @@ app.use(
 );
 
 // Bull Board — protected: only authenticated users can view the queue dashboard
-app.use('/admin/queues', serverAdapter.getRouter());
+app.use('/admin/queues', authMiddleware, serverAdapter.getRouter());
 
 // Health check — intentionally public so load balancers can ping it without a token
 app.get('/health', async (req, res) => {

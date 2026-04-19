@@ -35,6 +35,7 @@ import {
     Save,
     Image as ImageIcon,
     X,
+    Loader2,
 } from "lucide-react"
 import { FormPreviewModal } from "@/components/form-preview-modal"
 import { PublishSuccessModal } from "@/components/publish-success-modal"
@@ -88,6 +89,7 @@ export default function CreateEvent() {
     const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null)
     const [createdFormId, setCreatedFormId] = useState<string | null>(null)
     const [isUploadingBanner, setIsUploadingBanner] = useState(false)
+    const [isCreatingEvent, setIsCreatingEvent] = useState(false)
     const router = useRouter()
 
     const { mutateAsync: uploadAdmin } = useUploadFileAdmin()
@@ -108,6 +110,7 @@ export default function CreateEvent() {
             toast.error("Please enter an event title.")
             return
         }
+        setIsCreatingEvent(true)
         try {
             const payload: any = {
                 title: eventData.title,
@@ -148,6 +151,8 @@ export default function CreateEvent() {
             setCurrentStep(2)
         } catch (err: any) {
             toast.error(err.message)
+        } finally {
+            setIsCreatingEvent(false)
         }
     }
 
@@ -382,11 +387,11 @@ export default function CreateEvent() {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button onClick={handleStepOneNext} disabled={isUploadingBanner}>
-                                        {isUploadingBanner ? (
+                                    <Button onClick={handleStepOneNext} disabled={isCreatingEvent}>
+                                        {isCreatingEvent ? (
                                             <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                                Uploading banner...
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                {isUploadingBanner ? "Uploading banner..." : "Creating event..."}
                                             </>
                                         ) : "Next: Form Builder"}
                                     </Button>

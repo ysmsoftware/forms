@@ -136,7 +136,7 @@ function drawWorkshopCertificate(doc: typeof PDFDocument, data: WorkshopCertific
         doc.fontSize(6)
             .font('Helvetica')
             .fillColor('#888888')
-            .text(`certficate ID: ${certificateId}`, qrX, qrY + qrSize + 2, {
+            .text(`certificate ID: ${certificateId}`, qrX, qrY + qrSize + 2, {
                 width: qrSize,
                 align: 'center',
             });

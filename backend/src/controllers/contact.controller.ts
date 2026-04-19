@@ -142,8 +142,10 @@ export class ContactController {
     getCertificates = async (req: Request, res: Response, next: NextFunction) => {
         try{
             const contactId = req.params.id as string;
+            const limit = parseInt(req.query.limit as string) || 20;
+            const cursor = req.query.cursor as string;
 
-            const result = await this.contactService.getContactCertificates(contactId);
+            const result = await this.contactService.getContactCertificates(contactId, { limit, cursor });
 
             return res.json({
                 success: true,

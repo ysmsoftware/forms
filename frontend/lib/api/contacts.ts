@@ -1,10 +1,19 @@
 import { apiClient } from "./client";
-import type { Contact } from "../types/api";
+import type { 
+    Contact, 
+    ContactDetail, 
+    ContactEventsResponse, 
+    ContactCertificatesResponse, 
+    ContactPaymentsResponse, 
+    ContactMessagesResponse, 
+    ContactTagsResponse, 
+    ContactFilesResponse 
+} from "../types/api";
 
 // Extended Contact type returned by the contacts API (includes relations)
 export interface ContactWithRelations extends Contact {
     tags?: { id: string; name: string }[];
-    contactEvents?: { eventId: string }[];
+    contactEvents?: { eventId: string; source?: string }[];
 }
 
 export interface ContactListResponse {
@@ -68,4 +77,73 @@ export async function deleteContact(id: string): Promise<void> {
     return apiClient(`/contacts/${id}`, {
         method: "DELETE",
     });
+}
+
+
+export async function getContact(id: string): Promise<ContactDetail> {
+    const res: any = await apiClient(`/contacts/${id}`, {
+        method: 'GET'
+    });
+    return res as ContactDetail;
+}
+
+export async function getContactEvents(id: string): Promise<ContactEventsResponse> {
+    const res: any = await apiClient(`/contacts/${id}/events`, {
+        method: 'GET'
+    });
+    return res as ContactEventsResponse;
+}
+
+export async function getContactCertificates(id: string): Promise<ContactCertificatesResponse> {
+    const res: any = await apiClient(`/contacts/${id}/certificates`, {
+        method: 'GET'
+    });
+    return res as ContactCertificatesResponse;
+}
+
+export async function getContactPayments(
+    id: string,
+    params?: { limit?: number; cursor?: string; status?: string }
+): Promise<ContactPaymentsResponse> {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.status) query.set("status", params.status);
+    const qs = query.toString();
+    const res: any = await apiClient(`/contacts/${id}/payments${qs ? `?${qs}` : ""}`, {
+        method: 'GET'
+    });
+    return res as ContactPaymentsResponse;
+}
+
+export async function getContactMessages(
+    id: string,
+    params?: { limit?: number; offset?: number }
+): Promise<ContactMessagesResponse> {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.offset) query.set("offset", String(params.offset));
+    const qs = query.toString();
+    const res: any = await apiClient(`/contacts/${id}/messages${qs ? `?${qs}` : ""}`, {
+        method: 'GET'
+    });
+    return res as ContactMessagesResponse;
+}
+
+export async function getContactTags(id: string): Promise<ContactTagsResponse> {
+    const res: any = await apiClient(`/contacts/${id}/tags`, {
+        method: 'GET'
+    });
+    // Normalize the JOIN table response to just Tag objects
+    return {
+        tags: res.tags ?? [],
+        total: res.total ?? 0
+    };
+}
+
+export async function getContactFiles(id: string): Promise<ContactFilesResponse> {
+    const res: any = await apiClient(`/contacts/${id}/files`, {
+        method: 'GET'
+    });
+    return res as ContactFilesResponse;
 }

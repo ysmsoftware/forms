@@ -30,19 +30,10 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         submittedDelta: number;
     }): Promise<EventAnalytics> {
 
-        return prisma.$transaction(async (tx) => {
+        const deltaConversionRate = this.computeRate(data.startedDelta, data.submittedDelta);
 
-            const current = await tx.eventAnalytics.findUnique({
-                where: { eventId: data.eventId },
-                select: { totalStarted: true, totalSubmitted: true },
-            });
-
-            const newTotalStarted = (current?.totalStarted || 0) + data.startedDelta;
-            const newTotalSubmitted = (current?.totalSubmitted || 0) + data.submittedDelta;
-            const newConversionRate = this.computeRate(newTotalStarted, newTotalSubmitted);
-
-            return tx.eventAnalytics.upsert({
-                where: { eventId: data.eventId },
+        return  prisma.eventAnalytics.upsert({
+            where: { eventId: data.eventId },
                 create: {
                     eventId: data.eventId,
                     totalVisits: data.visitsDelta,
@@ -55,12 +46,9 @@ export class AnalyticsRepository implements IAnalyticsRepository {
                     totalVisits: { increment: data.visitsDelta },
                     totalStarted: { increment: data.startedDelta },
                     totalSubmitted: { increment: data.submittedDelta },
-                    conversionRate: newConversionRate,
+                    conversionRate: deltaConversionRate,
                     lastUpdated: new Date(),
                 },
-            });
-
-
         })
     }
 

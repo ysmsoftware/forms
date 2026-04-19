@@ -7,14 +7,14 @@ export function useSubmissionsByEvent(
     params?: { limit?: number; offset?: number; status?: string; page?: number }
 ) {
     const limit = params?.limit ?? 20
-    const page = params?.page ?? 1
-    const offset = (page - 1) * limit
+    const offset = params?.offset ?? ((params?.page ?? 1) - 1) * limit
     
     return useQuery({
         queryKey: [...queryKeys.submissions.byEvent(eventId), { ...params, limit, offset }],
         queryFn: () => getSubmissionsByEvent(eventId, { ...params, limit, offset }),
         enabled: !!eventId,
         staleTime: 30_000,
+        placeholderData: (previousData) => previousData,
     })
 }
 

@@ -125,7 +125,8 @@ export default function PublicForm() {
             startFiredRef.current = true
             startSubmission(slug, visitorUuid).catch(() => { })
         }
-        setFormValues((prev) => ({ ...prev, [fieldKey]: value }))
+        const nextValues = { ...formValues, [fieldKey]: value }
+        setFormValues(nextValues)
         // Clear error for this field when user starts editing
         if (fieldErrors[fieldKey]) {
             setFieldErrors(prev => {
@@ -135,19 +136,49 @@ export default function PublicForm() {
             })
         }
         // Re-validate this field in real-time
-        const errors = validateFields([field])
+        const errors = validateFields([field], nextValues)
         if (errors[fieldKey]) {
             setFieldErrors(prev => ({ ...prev, [fieldKey]: errors[fieldKey] }))
         }
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent, index: number, field: FormField) => {
+        if (e.key === "Enter") {
+            // For Textarea, allow standard Enter unless Ctrl/Meta is pressed
+            if (field.type === "TEXTAREA" && !e.ctrlKey && !e.metaKey) {
+                return
+            }
+
+            e.preventDefault()
+
+            const nextField = currentStepFields[index + 1]
+            if (nextField) {
+                // We use setTimeout to ensure focus happens after any potential state cycles
+                setTimeout(() => {
+                    const nextEl = document.getElementById(nextField.id)
+                    if (nextEl) {
+                        nextEl.focus()
+                        nextEl.scrollIntoView({ behavior: "smooth", block: "center" })
+                    }
+                }, 10)
+            } else {
+                // Last field in the step
+                if (currentStep < totalSteps - 1) {
+                    handleNextStep()
+                } else {
+                    handleSubmit()
+                }
+            }
+        }
+    }
 
 
-    function validateFields(fieldsToValidate: FormField[]): Record<string, string> {
+
+    function validateFields(fieldsToValidate: FormField[], valuesToValidate: Record<string, any> = formValues): Record<string, string> {
         const errors: Record<string, string> = {}
 
         for (const field of fieldsToValidate) {
-            const rawValue = formValues[field.key]
+            const rawValue = valuesToValidate[field.key]
             const v = field.validation as any
 
             // Required check
@@ -328,7 +359,7 @@ export default function PublicForm() {
         }
     }
 
-    const renderField = (field: FormField) => {
+    const renderField = (field: FormField, index: number) => {
         const value = formValues[field.key] || ""
         const hasError = !!fieldErrors[field.key]
 
@@ -339,9 +370,11 @@ export default function PublicForm() {
             case "DATE":
                 return (
                     <Input
+                        id={field.id}
                         type={field.type.toLowerCase()}
                         value={value}
                         onChange={(e) => handleFieldChange(field.key, e.target.value, field)}
+                        onKeyDown={(e) => handleKeyDown(e, index, field)}
                         required={field.required}
                         className={hasError ? "border-destructive focus:border-destructive" : ""}
                     />
@@ -350,8 +383,10 @@ export default function PublicForm() {
             case "TEXTAREA":
                 return (
                     <Textarea
+                        id={field.id}
                         value={value}
                         onChange={(e) => handleFieldChange(field.key, e.target.value, field)}
+                        onKeyDown={(e) => handleKeyDown(e, index, field)}
                         required={field.required}
                         rows={4}
                         className={hasError ? "border-destructive focus:border-destructive" : ""}
@@ -366,7 +401,7 @@ export default function PublicForm() {
 
                 return (
                     <Select value={value} onValueChange={(val) => handleFieldChange(field.key, val, field)} required={field.required}>
-                        <SelectTrigger className={hasError ? "border-destructive focus:border-destructive" : ""}>
+                        <SelectTrigger id={field.id} className={hasError ? "border-destructive focus:border-destructive" : ""} onKeyDown={(e) => handleKeyDown(e, index, field)}>
                             <SelectValue placeholder="Select an option" />
                         </SelectTrigger>
                         <SelectContent>
@@ -386,7 +421,7 @@ export default function PublicForm() {
                     : (field.options as any)?.choices ?? []
 
                 return (
-                    <RadioGroup value={value} onValueChange={(val) => handleFieldChange(field.key, val, field)} required={field.required}>
+                    <RadioGroup id={field.id} value={value} onValueChange={(val) => handleFieldChange(field.key, val, field)} required={field.required} onKeyDown={(e) => handleKeyDown(e, index, field)}>
                         {radioChoices.map((option: string) => (
                             <div key={option} className="flex items-center space-x-2">
                                 <RadioGroupItem value={option} id={`${field.id}-${option}`} />
@@ -404,7 +439,7 @@ export default function PublicForm() {
                     : (field.options as any)?.choices ?? []
 
                 return (
-                    <div className="space-y-2">
+                    <div id={field.id} className="space-y-2" onKeyDown={(e) => handleKeyDown(e, index, field)} tabIndex={0}>
                         {checkboxChoices.map((option: string) => (
                             <div key={option} className="flex items-center space-x-2">
                                 <Checkbox
@@ -426,12 +461,14 @@ export default function PublicForm() {
             case "FILE":
                 return (
                     <PublicFileUploadField
+                        id={field.id}
                         field={field}
                         eventId={form?.event?.id}
                         eventSlug={slug}
                         visitorId={visitorUuid}
                         value={value}
                         onChange={(url) => handleFieldChange(field.key, url, field)}
+                        onKeyDown={(e) => handleKeyDown(e, index, field)}
                         disabled={isSubmitting}
                     />
                 )
@@ -715,13 +752,13 @@ export default function PublicForm() {
                                         </div>
                                     )}
                                     <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-                                        {currentStepFields.map((field) => (
+                                        {currentStepFields.map((field, index) => (
                                             <div key={field.id} className="space-y-2">
                                                 <Label htmlFor={field.id} className="text-sm font-medium">
                                                     {field.label}
                                                     {field.required && <span className="text-destructive ml-1">*</span>}
                                                 </Label>
-                                                {renderField(field)}
+                                                {renderField(field, index)}
                                                 {fieldErrors[field.key] && (
                                                     <p className="text-xs text-destructive flex items-center gap-1 mt-1">
                                                         <AlertCircle className="h-3 w-3 shrink-0" />

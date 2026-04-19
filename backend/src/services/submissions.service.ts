@@ -11,6 +11,7 @@ import { StartSubmissionInput, SubmissionFilterInput, SubmissionFormInput } from
 import { VisitorInput } from "../validators/visitor.schema";
 import { validateSubmissionAgainstForm } from "../validators/formSubmission.validator";
 import { IContactRepository } from "../repositories/contact.repo";
+import { IFileRepository } from "../repositories/file.repo";
 
 export class SubmissionService {
     constructor(
@@ -18,7 +19,7 @@ export class SubmissionService {
         private formRepo: IFormRepository,
         private eventRepo: IEventRepository,
         private contactRepo: IContactRepository,
-        // private redis?: RedisClient // injected later
+        private fileRepo: IFileRepository,
     ) { }
 
 
@@ -226,6 +227,21 @@ export class SubmissionService {
             }
         }
 
+
+        // - Backfill contactId on any file assets uploaded during this session.
+        //   Files are uploaded before the form is submitted (no contactId yet at
+        //   that point), so we patch all of them in one updateMany call now that
+        //   the contact is known. The guard inside the repo (contactId: null)
+        //   ensures we never overwrite a pre-existing link.
+        if (contactId) {
+            const fileUrls = answers
+                .filter(a => a.fileUrl)
+                .map(a => a.fileUrl as string);
+
+            if (fileUrls.length > 0) {
+                await this.fileRepo.updateContactIdByUrls(fileUrls, contactId);
+            }
+        }
 
         // - Create full submission
         const submission = await this.submissionRepo.createFullSubmission({

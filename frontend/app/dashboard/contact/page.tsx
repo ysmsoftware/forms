@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useMemo, memo } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, MessageSquare, Phone, Tag as TagIcon, Mail, User, Download, X, Plus } from "lucide-react"
+import { Search, MessageSquare, Phone, Tag as TagIcon, Mail, User, Download, X, Plus, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { useEvents } from "@/lib/query/hooks/useEvents"
 import { useContacts, useTags, useAssignTag, useRemoveTag, useCreateTag } from "@/lib/query/hooks/useContacts"
@@ -112,6 +113,8 @@ const ContactTable = memo(({
     isFetchingNextPage, 
     onLoadMore 
 }: any) => {
+    const router = useRouter()
+
     if (isLoading) return <Skeleton className="h-[400px] w-full rounded-xl" />
 
     return (
@@ -129,7 +132,11 @@ const ContactTable = memo(({
                     </TableHeader>
                     <TableBody>
                         {contacts.map((contact: ContactWithRelations) => (
-                            <TableRow key={contact.id}>
+                            <TableRow 
+                                key={contact.id}
+                                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={() => router.push(`/dashboard/contact/${contact.id}`)}
+                            >
                                 <TableCell>
                                     <div className="font-medium">{contact.name || "—"}</div>
                                     <div className="text-xs text-muted-foreground">{contact.email}</div>
@@ -148,7 +155,7 @@ const ContactTable = memo(({
                                         {contact.tags?.map(t => <Badge key={t.id} variant="secondary" className="text-xs">{t.name}</Badge>)}
                                     </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                     <ContactActions contact={contact} allTags={allTags} {...actions} />
                                 </TableCell>
                             </TableRow>

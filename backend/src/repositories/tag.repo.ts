@@ -73,6 +73,9 @@ export class TagRepository implements ITagRepository {
         return await prisma.contactTag.findMany({
             where: {
                  contactId
+            },
+            include: {
+                tag: true
             }
         })
     }

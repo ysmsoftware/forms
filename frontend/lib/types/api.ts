@@ -120,6 +120,7 @@ export interface FileAsset {
     size: number;
     context: string;
     fieldKey?: string;
+    createdAt:string;
 }
 
 export type CertificateStatus = "QUEUED" | "PROCESSING" | "GENERATED" | "UPLOADED" | "FAILED";
@@ -146,6 +147,104 @@ export interface MessageLog {
     status: MessageStatus;
     sentAt?: string;
     createdAt: string;
+}
+
+// ========== Contact Detail Types ==========
+
+export interface ContactDetail extends Contact {
+    createdAt: string;
+    updatedAt: string;
+    isDeleted: boolean;
+    tags?: Tag[];
+    contactEvents?: ContactEvent[];
+}
+
+export interface Tag {
+    id: string;
+    name: string;
+}
+
+export interface ContactEvent {
+    eventId: string;
+    source: string; // e.g., "FORM_SUBMISSION"
+}
+
+export interface ContactEventsResponse {
+    events: Event[];
+    total: number;
+}
+
+export interface ContactCertificate extends Certificate {
+    contact?: Contact;
+    event?: Event;
+    fileAsset?: FileAsset;
+}
+
+export interface ContactCertificatesResponse {
+    certificates: ContactCertificate[];
+    total: number;
+}
+
+export type PaymentStatus = "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+
+export interface Payment {
+    id: string;
+    eventId: string;
+    submissionId?: string;
+    contactId: string;
+    amount: number;
+    currency: string;
+    status: PaymentStatus;
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    paidAt?: string;
+    metadata?: Record<string, any>;
+    attempts?: number;
+    failureReason?: string;
+    webhookConfirmed?: boolean;
+    createdAt: string;
+    isDeleted: boolean;
+}
+
+export interface ContactPaymentsResponse {
+    payments: {
+        items: Payment[];
+        nextCursor?: string | null;
+    };
+    total: number;
+}
+
+export type MessageTemplate = "CERTIFICATE_ISSUED" | "PAYMENT_RECEIVED" | "FORM_SUBMITTED" | string;
+
+export interface ContactMessage extends MessageLog {
+    contact?: Contact;
+    event?: { id: string; title: string };
+    template: MessageTemplate;
+    params?: Record<string, any>;
+    providerResponse?: Record<string, any>;
+    errorMessage?: string | null;
+    attemptCount: number;
+}
+
+export interface ContactMessagesResponse {
+    messages: ContactMessage[];
+    total: number;
+}
+
+export interface ContactTagsResponse {
+    tags: ContactTagRelation[];
+    total: number;
+}
+
+export interface ContactTagRelation {
+    contactId: string;
+    tagId: string;
+    tag: Tag;
+}
+
+export interface ContactFilesResponse {
+    files: FileAsset[];
+    total: number;
 }
 
 export interface EventAnalytics {

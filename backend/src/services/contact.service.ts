@@ -128,15 +128,20 @@ export class ContactService {
         }
     }
 
-    async getContactCertificates(id: string) {
+    async getContactCertificates(id: string, params?: { limit?: number; cursor?: string }) {
         
         await this.contactRepo.findByIdOrThrow(id);
     
-        const certificates = await this.certificateRepo.findByContactId(id);
+        const { items, total, nextCursor } = await this.certificateRepo.findByContactId(
+            id, 
+            params?.limit ?? 20, 
+            params?.cursor
+        );
 
         return {
-            certificates,
-            total: certificates.length
+            certificates: items,
+            total,
+            nextCursor
         }
         
     }

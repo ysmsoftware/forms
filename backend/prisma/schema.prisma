@@ -126,7 +126,7 @@ model Event {
   certificates    Certificate[]
   messageLogs     MessageLog[]
   analytics       EventAnalytics?
-  daliyAnalytics  EventAnalyticsDaily[]
+  dailyAnalytics  EventAnalyticsDaily[]
   fileAssets      FileAsset[]
 
 

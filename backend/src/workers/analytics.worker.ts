@@ -47,7 +47,7 @@ export class AnalyticsWorker {
 
                     await redis.srem("analytics:activeEvents", eventId);
                 } catch(err) {
-                    logger.error("Snapshot failed for event", { eventId, err });
+                    logger.error("Snapshot failed for event", { eventId, error: (err as Error).message });
                 }
             }
 

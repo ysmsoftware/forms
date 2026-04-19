@@ -72,12 +72,11 @@ export class WhatsAppProvider implements IWhatsAppProvider {
         });
 
         const responseData = await response.json();
-        // Get response code
-        const responseCode = response.status;
-        console.log("Response Code:", responseCode);
+        
+        logger.info(`WhatsApp message send: ${campaignName} to ${payload.userName}`);
 
         if (!response.ok) {
-            logger.error(`WhatsApp send failded`, responseData);
+            logger.error(`WhatsApp send failed`, responseData);
             throw new Error("WhatsApp send failed")
         }
 

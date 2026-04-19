@@ -22,6 +22,15 @@ export const queryKeys = {
         all: ["contacts"] as const,
         list: (params: { search?: string; lastId?: string }) =>
             [...queryKeys.contacts.all, "list", params] as const,
+        detail: (id: string) => [...queryKeys.contacts.all, "detail", id] as const,
+        events: (id: string) => [...queryKeys.contacts.all, "events", id] as const,
+        certificates: (id: string) => [...queryKeys.contacts.all, "certificates", id] as const,
+        payments: (id: string, params?: { limit?: number; cursor?: string; status?: string }) =>
+            [...queryKeys.contacts.all, "payments", id, params ?? {}] as const,
+        messages: (id: string, params?: { limit?: number; offset?: number }) =>
+            [...queryKeys.contacts.all, "messages", id, params ?? {}] as const,
+        tags: (id: string) => [...queryKeys.contacts.all, "tags", id] as const,
+        files: (id: string) => [...queryKeys.contacts.all, "files", id] as const,
     },
     // Tags
     tags: {

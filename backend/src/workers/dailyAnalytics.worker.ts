@@ -54,12 +54,12 @@ export class DailyAnalyticsWorker {
 
                     const prevVisits = prevDaily?.visits ?? 0;
                     const prevStarted = prevDaily?.started ?? 0;
-                    const prevSubmiited = prevDaily?.submitted ?? 0;
+                    const prevSubmitted = prevDaily?.submitted ?? 0;
 
 
                     const dailyVisits = analytics.totalVisits - prevVisits;
                     const dailyStarted = analytics.totalStarted - prevStarted;
-                    const dailySubmitted = analytics.totalSubmitted - prevSubmiited;
+                    const dailySubmitted = analytics.totalSubmitted - prevSubmitted;
 
 
                     const conversionRate = dailyStarted === 0

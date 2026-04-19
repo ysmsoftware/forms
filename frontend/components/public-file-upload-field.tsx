@@ -12,6 +12,8 @@ interface PublicFileUploadFieldProps {
     value: string
     onChange: (url: string) => void
     disabled?: boolean
+    id?: string
+    onKeyDown?: (e: React.KeyboardEvent) => void
 }
 
 export function PublicFileUploadField({
@@ -21,7 +23,9 @@ export function PublicFileUploadField({
     visitorId,
     value,
     onChange,
-    disabled
+    disabled,
+    id,
+    onKeyDown
 }: PublicFileUploadFieldProps) {
     const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done" | "error">(value ? "done" : "idle")
     const [fileName, setFileName] = useState<string>(value ? value.split("/").pop() || "Uploaded File" : "")
@@ -117,7 +121,12 @@ export function PublicFileUploadField({
     }
 
     return (
-        <div className={`relative border-2 border-dashed rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center text-center ${disabled ? "opacity-50 pointer-events-none" : "border-border"}`}>
+        <div 
+            id={id}
+            className={`relative border-2 border-dashed rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center text-center ${disabled ? "opacity-50 pointer-events-none" : "border-border"}`}
+            onKeyDown={onKeyDown}
+            tabIndex={0}
+        >
             <input
                 type="file"
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

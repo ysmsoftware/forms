@@ -42,6 +42,7 @@ interface SubmissionTableProps {
     currentPage?: number
     pageSize?: number
     onPageChange?: (page: number) => void
+    isLoading?: boolean
 }
 
 const statusColor: Record<string, string> = {
@@ -60,7 +61,8 @@ export function SubmissionTable({
     totalCount,
     currentPage,
     pageSize,
-    onPageChange
+    onPageChange,
+    isLoading = false
 }: SubmissionTableProps) {
     const [selected, setSelected] = useState<FormSubmission | null>(null)
     const [open, setOpen] = useState(false)
@@ -78,7 +80,7 @@ export function SubmissionTable({
     const effectiveTotalPages = Math.ceil(effectiveTotalCount / (pageSize ?? itemsPerPage))
 
 
-    const displaySubmissions = paginated
+    const displaySubmissions = (paginated && !isServerPaginated)
         ? submissions.slice((localCurrentPage - 1) * itemsPerPage, localCurrentPage * itemsPerPage)
         : maxRows
             ? submissions.slice(0, maxRows)
@@ -268,8 +270,17 @@ export function SubmissionTable({
                         </CardDescription>
                     )}
                 </div>
+                {isLoading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Syncing...
+                    </div>
+                )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
+                {isLoading && (
+                    <div className="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-b-xl" />
+                )}
                 {submissions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -308,7 +319,7 @@ export function SubmissionTable({
                                 {displaySubmissions.map((sub, idx) => (
                                     <TableRow key={sub.id}>
                                         <TableCell className="text-muted-foreground">
-                                            {(localCurrentPage - 1) * itemsPerPage + idx + 1}
+                                            {(effectiveCurrentPage - 1) * (pageSize ?? itemsPerPage) + idx + 1}
                                         </TableCell>
 
                                         {/* Dynamic Columns Data */}

@@ -48,7 +48,7 @@ export default function EventDetailPage() {
 
     const { data: event, isLoading: isLoadingEvent } = useEvent(id)
     const { data: analytics, isLoading: isLoadingAnalytics } = useEventAnalytics(id)
-    const { data: submissionsResult, isLoading: isLoadingSubmissions } = useSubmissionsByEvent(id, {
+    const { data: submissionsResult, isLoading: isLoadingSubmissions, isFetching: isFetchingSubmissions } = useSubmissionsByEvent(id, {
         limit: PAGE_SIZE,
         offset: (submissionPage) * PAGE_SIZE,
         status: "ALL",
@@ -69,7 +69,9 @@ export default function EventDetailPage() {
             .filter((cid, idx, arr) => arr.indexOf(cid) === idx), // deduplicate
         [submissions]
     )
-    const isLoading = isLoadingEvent || isLoadingAnalytics || isLoadingSubmissions
+
+    // Only show full page skeleton if we don't have event metadata yet
+    const isInitialLoading = isLoadingEvent || (!event && isLoadingAnalytics)
 
     const conversionRate =
         analytics && analytics.totalVisits > 0
@@ -84,7 +86,7 @@ export default function EventDetailPage() {
     }
 
     /* ────────────────────── Loading state ────────────────────── */
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <div className="space-y-8">
                 {/* Header skeleton */}
@@ -311,6 +313,7 @@ export default function EventDetailPage() {
                 currentPage={submissionPage}
                 pageSize={PAGE_SIZE}
                 onPageChange={setSubmissionPage}
+                isLoading={isFetchingSubmissions}
             />
         </div>
     )

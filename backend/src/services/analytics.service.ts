@@ -47,7 +47,7 @@ export class AnalyticsService {
             await redis.del(visitsKey, startedKey, submittedKey);
 
         } catch (err) {
-            logger.error("Snapshot failed", { eventId, err });
+            logger.error("Snapshot failed", { eventId, error:  (err as Error).message });
             throw err;
         }
 

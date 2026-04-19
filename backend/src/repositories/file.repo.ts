@@ -1,8 +1,8 @@
 import { prisma } from "../config/db";
-import { FileAsset  } from "@prisma/client";
+import { FileAsset } from "@prisma/client";
 
 export interface IFileRepository {
-    
+
     create(data: {
         url: string;
         storageKey: string;
@@ -24,6 +24,8 @@ export interface IFileRepository {
     findByEventId(eventId: string): Promise<FileAsset[]>;
 
     deleteById(id: string): Promise<FileAsset | null>;
+
+    updateContactIdByUrls(urls: string[], contactId: string): Promise<number>;
 
 }
 
@@ -72,5 +74,17 @@ export class FileRepository implements IFileRepository {
             where: { id },
         });
     }
+
+    async updateContactIdByUrls(urls: string[], contactId: string): Promise<number> {
+        const result = await prisma.fileAsset.updateMany({
+            where: {
+                url: { in: urls },
+                contactId: null,
+            },
+            data: { contactId },
+        });
+        return result.count;
+    }
+
 
 }

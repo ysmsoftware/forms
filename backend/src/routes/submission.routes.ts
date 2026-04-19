@@ -30,6 +30,23 @@ const submitLimiter = rateLimit({
 });
 
 
+const darftLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,   // Return RateLimit headers
+    legacyHeaders: false,
+    store: new RedisStore({
+        sendCommand: (...args: string[]) => {
+            const [command, ...rest] = args as [string, ...string[]];
+            return redis.call(command, ...rest) as Promise<any>;
+        },
+    }),
+    message: {
+        success: false,
+        message: "Too many submissions from this IP, please try again in 15 minutes."
+    }
+});
+
 // PUBLIC ROUTES (User / Visitor)
 
 // Get public form
@@ -62,12 +79,14 @@ router.post(
 // Save draft
 router.post(
     "/:slug/draft",
+    darftLimiter,
     submissionController.saveDraft
 );
 
 // Get draft
 router.get(
     "/:slug/draft",
+    darftLimiter,
     submissionController.getDraft
 );
 
