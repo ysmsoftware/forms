@@ -5,6 +5,7 @@ import { IEventRepository } from "../repositories/event.repo";
 import { IPaymentRepository } from "../repositories/payment.repo";
 import { ISubmissionRepository } from "../repositories/submission.repo";
 import { PaymentStatus, Payment } from "@prisma/client";
+import { convertMinorUnitToMajor } from "../utils/currency";
 import { MessageService } from "./message.service";
 
 // ── Return types ───────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ export class PaymentService {
                         type: 'WHATSAPP',
                         template: 'PAYMENT_CONFIRMATION_MESSAGE',
                         params: {
-                            amount: payment.amount / 100, // convert back to rupees
+                            amount: convertMinorUnitToMajor(payment.amount, payment.currency),
                         }
                     }).catch(err => 
                         logger.warn("Payment confirmation message failed", {

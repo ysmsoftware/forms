@@ -1,4 +1,5 @@
 import { PaymentStatus } from "@prisma/client";
+import { convertMinorUnitToMajor } from "../utils/currency";
 import { BadRequestError, ConflictError, NotFoundError } from "../errors/http-errors";
 import { ICertificateRepository } from "../repositories/certificate.repo";
 import { ContactWithRelations, IContactRepository } from "../repositories/contact.repo";
@@ -160,10 +161,18 @@ export class ContactService {
             ...(params?.status && { status: params.status as PaymentStatus }),
             ...(params?.cursor && { cursor: params.cursor }), 
         });
+
+        const paymentsInMajorUnits = {
+            ...payments,
+            items: payments.items.map(payment => ({
+                ...payment,
+                amount: convertMinorUnitToMajor(payment.amount, payment.currency),
+            })),
+        };
         
         return {
-            payments,
-            total: payments.items.length ?? 0
+            payments: paymentsInMajorUnits,
+            total: paymentsInMajorUnits.items.length
         }
 
     }
