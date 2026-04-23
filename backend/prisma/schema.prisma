@@ -313,6 +313,7 @@ model Contact {
 
   @@unique([organizationId, email])
   @@unique([organizationId, phone])
+  @@unique([id, organizationId])
   @@index([organizationId])
   @@index([email])
   @@index([phone])

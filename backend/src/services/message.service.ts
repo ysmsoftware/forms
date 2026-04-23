@@ -48,7 +48,7 @@ export class MessageService {
         organizationId: string,
         eventId?: string
     ): Promise<{ resolved: Record<string, string>; missing: string[]; resolvedEventId?: string | undefined }> {
-        const contact = await this.contactRepo.findById(contactId, organizationId);
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if (!contact) {
             throw new NotFoundError("Contact not found");
         }

@@ -72,7 +72,7 @@ export class ContactService {
     }
 
     async deleteContact(id: string, organizationId: string) {
-        const contact = await this.contactRepo.findById(id, organizationId);
+        const contact = await this.contactRepo.findById(organizationId, id);
         if(!contact) {
             throw new  NotFoundError("Contact not found")
         }
@@ -81,11 +81,11 @@ export class ContactService {
     }
 
     async restoreContact(id: string, organizationId: string) {
-        const contact = await this.contactRepo.findByIdIncludingDeleted(id, organizationId);
+        const contact = await this.contactRepo.findByIdIncludingDeleted(organizationId, id);
         if(!contact) {
             throw new NotFoundError("Contact not found");
         }
-        await this.contactRepo.restoreContact(id, organizationId);
+        await this.contactRepo.restoreContact(organizationId, id);
     }
 
     async listContacts(params: {
@@ -104,7 +104,7 @@ export class ContactService {
     }
 
     async getContactById(id: string, organizationId: string) {
-        const contact = await this.contactRepo.findByIdWithRelations(id, organizationId);
+        const contact = await this.contactRepo.findByIdWithRelations(organizationId, id);
         if (!contact) {
             throw new NotFoundError("Contact not found");
         }
@@ -113,7 +113,7 @@ export class ContactService {
 
     async getContactEventIds(contactId:string, organizationId: string) {
         
-        const contact = await this.contactRepo.findById(contactId, organizationId);
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if(!contact) {
              throw new NotFoundError("Contact not found");
         }
