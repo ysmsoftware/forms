@@ -186,7 +186,7 @@ export class ContactRepository implements IContactRepository {
     }
 
     async findByIdOrThrow(organizationId: string, id: string): Promise<Contact> {
-        return await prisma.contact.findUniqueOrThrow({
+        return await prisma.contact.findFirstOrThrow({
             where: { id, organizationId, isDeleted: false }
         })
     }
