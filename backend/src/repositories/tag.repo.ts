@@ -4,10 +4,10 @@ import { prisma } from "../config/db";
 
 export interface ITagRepository {
 
-    createTag(name: string): Promise<Tag>;
-    listTags(): Promise<Tag[]>;
+    createTag(organizationId: string, name: string): Promise<Tag>;
+    listTags(organizationId: string): Promise<Tag[]>;
 
-    findTagById(tagId: string): Promise<Tag | null>;
+    findTagById(organizationId: string, tagId: string): Promise<Tag | null>;
 
     addTagToContact(
         contactId: string,
@@ -26,24 +26,27 @@ export interface ITagRepository {
 
 export class TagRepository implements ITagRepository {
      
-    async createTag(name: string): Promise<Tag> {
+    async createTag(organizationId: string, name: string): Promise<Tag> {
         return await prisma.tag.upsert({
-            where: { name },
-            create: { name },
+            where: { organizationId_name: { organizationId, name } },
+            create: { organizationId, name },
             update: {},
         });
     }
 
-    async findTagById(tagId: string): Promise<Tag | null> {
-        return await prisma.tag.findUnique({
+    async findTagById(organizationId: string, tagId: string): Promise<Tag | null> {
+        return await prisma.tag.findFirst({
             where: {
-                id: tagId
+                id: tagId,
+                organizationId
             }
         });
     }
 
-    async listTags(): Promise<Tag[]> {
-        return await prisma.tag.findMany({});
+    async listTags(organizationId: string): Promise<Tag[]> {
+        return await prisma.tag.findMany({
+            where: { organizationId }
+        });
     }
     async addTagToContact(contactId: string, tagId: string): Promise<void> {
         await prisma.contactTag.upsert({

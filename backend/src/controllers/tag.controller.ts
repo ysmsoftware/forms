@@ -9,12 +9,13 @@ export class TagController {
 
     create = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { name } = req.body;
             if(!name) {
                 throw new BadRequestError("Tag name required")
             }
 
-            const result = await this.tagService.createTag(name);
+            const result = await this.tagService.createTag(organizationId, name);
 
             return res.status(201).json({
                 success: true,
@@ -28,7 +29,8 @@ export class TagController {
 
     list = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const result = await this.tagService.listTags();
+            const { organizationId } = req.user!;
+            const result = await this.tagService.listTags(organizationId);
 
             return res.json({
                 success: true,
@@ -42,13 +44,14 @@ export class TagController {
 
     addToContact = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, tagId } = req.body;
 
             if(!contactId || !tagId) {
                 throw new BadRequestError("contactId and tagId required");
             }
 
-            await this.tagService.addTagToContact(contactId, tagId);
+            await this.tagService.addTagToContact(organizationId, contactId, tagId);
 
             return res.json({
                 success: true,
@@ -62,13 +65,14 @@ export class TagController {
 
     removeFromContact = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, tagId } = req.body;
 
             if(!contactId || !tagId) {
                 throw new BadRequestError("contactId and tagId required");
             }
 
-            await this.tagService.removeTagFromContact(contactId, tagId);
+            await this.tagService.removeTagFromContact(organizationId, contactId, tagId);
 
             return res.json({
                 success: true,
@@ -82,13 +86,14 @@ export class TagController {
 
     bulkAdd = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { tagId, contactIds } = req.body;
 
             if(!tagId || ! Array.isArray(contactIds)) {
                 throw new BadRequestError("tagId and contactIds[] required");
             }
 
-            await this.tagService.bulkAddTagToContacts(tagId, contactIds);
+            await this.tagService.bulkAddTagToContacts(organizationId, tagId, contactIds);
 
             return res.json({
                 success: true,
@@ -102,9 +107,10 @@ export class TagController {
 
     getContactByTag = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const tagId = req.params.tagId as string;
 
-            const result = await this.tagService.getContactIdsByTag(tagId);
+            const result = await this.tagService.getContactIdsByTag(organizationId, tagId);
 
             return res.json({
                 success: true,

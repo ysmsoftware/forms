@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../utils/jwt";
 import logger from "../config/logger";
-import { UnauthorizedError } from "../errors/http-errors";
+import { UnauthorizedError, ForbiddenError } from "../errors/http-errors";
 
-export const authMiddleware = async (
+export const authenticatedOrgMiddleware = async (
   req: Request,
   _res: Response,
   next: NextFunction
@@ -19,12 +19,16 @@ export const authMiddleware = async (
       throw new UnauthorizedError("Unauthorized");
     }
 
-    // JWT signature verification is sufficient for identity —
-    // the token is cryptographically signed and has a 30-minute TTL.
-    // No DB round trip needed on every request.
     const payload = verifyToken(token);
 
     req.user = { id: payload.userId, organizationId: payload.organizationId };
+
+    const { organizationId } = req.user;
+    if (!organizationId) {
+      throw new ForbiddenError("No active organization");
+    }
+    // TODO: For production with multiple orgs, verify membership is still active in DB
+    // JWT can be stale if membership was revoked (TTL: 30min for internal tool, acceptable)
 
     logger.debug(`User authenticated: ${payload.userId} org: ${payload.organizationId}`);
     next();

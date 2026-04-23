@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 
 export interface JwtPayload {
     userId: string,
+    organizationId: string,
 }
 
 export const createAccessToken = (payload: JwtPayload) => {

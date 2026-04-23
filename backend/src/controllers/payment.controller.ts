@@ -114,6 +114,7 @@ export class PaymentController {
 
     getPaymentsByEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const eventId = req.params.eventId as string;
             const cursor = req.query.cursor as string;
             const limit = Math.min(
@@ -129,9 +130,11 @@ export class PaymentController {
             if(!eventId) {
                 return res.status(400).json({ success: false, message: "event Id is required" });
             }
+
+
             logger.info("Fetch event payments request", {eventId, requestId: req.id });
 
-            const result = await this.paymentService.getPaymentsByEvent({eventId, limit, status, cursor})
+            const result = await this.paymentService.getPaymentsByEvent({ organizationId, eventId, limit, status, cursor})
             return res.status(200).json({
                 success: true,
                 data: result
@@ -144,6 +147,7 @@ export class PaymentController {
 
     getPaymentById = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            
             const paymentId = req.params.paymentId as string;
             if(!paymentId) {
                 return res.status(400).json({ success: false, message: "paymentId is required" });
@@ -163,6 +167,7 @@ export class PaymentController {
 
     getAllPayment = async(req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const eventId = req.query.eventId as string;
             const contactId = req.query.contactId as string;
             const razorpayPaymentId = req.query.razorpayPaymentId as string;
@@ -178,7 +183,7 @@ export class PaymentController {
 
             logger.info("Fetch Payments request", {eventId, contactId, razorpayPaymentId, requestId: req.id });
 
-            const  result = await this.paymentService.getAllPayments({ eventId, contactId, razorpayPaymentId, cursor, status, limit});
+            const  result = await this.paymentService.getAllPayments({organizationId, eventId, contactId, razorpayPaymentId, cursor, status, limit});
 
             
             res.status(200).json({

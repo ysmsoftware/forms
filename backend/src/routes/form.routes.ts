@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { formController } from "../container";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authenticatedOrgMiddleware } from "../middlewares/authenticated-org.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import {
     createFormSchema,
@@ -15,7 +15,7 @@ const router = Router();
 // Create form for event
 router.post(
     "/event/:eventId",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     validate(createFormSchema),
     formController.createForm
 );
@@ -23,7 +23,7 @@ router.post(
 // Upsert form for event
 router.put(
     "/event/:eventId",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     validate(updateFormSchema),
     formController.upsertForm
 );
@@ -31,7 +31,7 @@ router.put(
 // Get form by event (admin)
 router.get(
     "/event/:eventId",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     formController.getFormByEvent
 );
 
@@ -45,21 +45,21 @@ router.get(
 // Get form by id (admin)
 router.get(
     "/:formId",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     formController.getFormById
 );
 
 // Publish form
 router.post(
     "/:formId/publish",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     formController.publishForm
 );
 
 // Soft delete form
 router.delete(
     "/:formId",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     formController.deleteForm
 );
 

@@ -310,7 +310,12 @@ Visitor ────────────────────────
 |--------|----------|------|-------------|
 | `POST` | `/payments/order` | 🌐 | Create Razorpay order |
 | `POST` | `/payments/verify` | 🌐 | Verify payment signature |
+| `POST` | `/payments/retry` | 🌐 | Retry failed payment |
+| `GET` | `/payments/:paymentId` | 🌐 | Get payment status by ID |
 | `POST` | `/payments/webhook` | 🌐 | Razorpay webhook (raw body) |
+| `GET` | `/payments/events/:eventId` | 🔒 | Get payments for an event |
+| `GET` | `/payments/` | 🔒 | Get all payments (admin) |
+| `POST` | `/payments/:paymentId/cancel` | 🔒 | Cancel a payment |
 
 ### 🏅 Certificates
 

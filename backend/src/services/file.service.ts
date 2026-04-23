@@ -40,6 +40,7 @@ export class FileService {
      *
      */
     async upload(params: {
+        organizationId?: string,
         file: Express.Multer.File;
         context: FileContext;
         contactId?: string,
@@ -73,6 +74,7 @@ export class FileService {
 
 
         const file = await this.fileRepo.create({
+            ...(params.organizationId !== undefined && { organizationId: params.organizationId }),
             url: uploaded.url,
             storageKey: uploaded.storageKey,
             mimeType: params.file.mimetype,
@@ -99,8 +101,8 @@ export class FileService {
     }
 
 
-    async getById(id: string) {
-        const file = await this.fileRepo.findById(id);
+    async getById(id: string, organizationId: string) {
+        const file = await this.fileRepo.findById(id, organizationId);
         if(!file) {
             throw new NotFoundError("File not found");
         }
@@ -108,20 +110,18 @@ export class FileService {
     }
 
 
-    async getByContactId(contactId: string) {
-        return this.fileRepo.findByContactId(contactId);
+    async getByContactId(contactId: string, organizationId: string) {
+        return this.fileRepo.findByContactId(contactId, organizationId);
     }
 
-    async getByEventId(eventId: string) {
-        return this.fileRepo.findByEventId(eventId);
+    async getByEventId(eventId: string, organizationId: string) {
+        return this.fileRepo.findByEventId(eventId, organizationId);
     }
 
 
     // Delete file (DB + storage)
-    async deleteById(id: string): Promise<void> {
-        const file = await this.fileRepo.findById(id);
-        
-        // TODO: owenship check
+    async deleteById(id: string, organizationId: string): Promise<void> {
+        const file = await this.fileRepo.findById(id, organizationId);
 
         if(!file) {
             throw new NotFoundError("File not found");
@@ -134,6 +134,6 @@ export class FileService {
         }
 
         // DB
-        await this.fileRepo.deleteById(id);
+        await this.fileRepo.deleteById(id, organizationId);
     }
 }

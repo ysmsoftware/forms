@@ -30,6 +30,7 @@ import {
     Search,
     Loader2,
 } from "lucide-react"
+import Link from "next/link"
 import { toast } from "sonner"
 import { SectionErrorBoundary } from "@/components/section-error-boundary"
 import {
@@ -419,7 +420,12 @@ function EventsCard({ events, isLoading }: { events: any[]; isLoading: boolean }
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 leading-snug">{event.title}</p>
+                                    <Link 
+                                        href={`/dashboard/event/${event.id}`}
+                                        className="text-sm font-medium text-zinc-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                    >
+                                        {event.title}
+                                    </Link>
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <StatusPill status={event.status} />
                                         {event.link && (

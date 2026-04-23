@@ -465,6 +465,7 @@ export default function PublicForm() {
                         field={field}
                         eventId={form?.event?.id}
                         eventSlug={slug}
+                        organizationId={form?.event?.organizationId}
                         visitorId={visitorUuid}
                         value={value}
                         onChange={(url) => handleFieldChange(field.key, url, field)}

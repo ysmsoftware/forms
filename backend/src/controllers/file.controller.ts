@@ -29,10 +29,12 @@ export class FileController {
         });
       }
 
+      
       const {
         context,
         contactId,
         eventId,
+        organizationId,
         eventSlug,
         fieldKey,
         visitorId,
@@ -47,6 +49,7 @@ export class FileController {
       }
 
       const result = await this.fileService.upload({
+        organizationId,
         file: req.file,
         context: context as FileContext,
         contactId,
@@ -74,6 +77,8 @@ export class FileController {
    */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+    
+    const { organizationId } = req.user!;
       const { id } = req.params;
       
       if (!id || typeof id !== 'string') {
@@ -83,7 +88,7 @@ export class FileController {
         });
       }
 
-      const file = await this.fileService.getById(id);
+      const file = await this.fileService.getById(id, organizationId);
 
       return res.json({
         success: true,
@@ -101,7 +106,8 @@ export class FileController {
    */
   getByContactId = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { contactId } = req.params;
+      const { organizationId } = req.user!;
+       const { contactId } = req.params;
       
       if (!contactId || typeof contactId !== 'string') {
         return res.status(400).json({
@@ -110,7 +116,7 @@ export class FileController {
         });
       }
 
-      const files = await this.fileService.getByContactId(contactId);
+      const files = await this.fileService.getByContactId(contactId, organizationId);
 
       return res.json({
         success: true,
@@ -128,6 +134,7 @@ export class FileController {
    */
   getByEventId = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        const { organizationId } = req.user!;
       const { eventId } = req.params;
       
       if (!eventId || typeof eventId !== 'string') {
@@ -137,7 +144,7 @@ export class FileController {
         });
       }
 
-      const files = await this.fileService.getByEventId(eventId);
+      const files = await this.fileService.getByEventId(eventId, organizationId);
 
       return res.json({
         success: true,
@@ -155,7 +162,8 @@ export class FileController {
    */
   deleteById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const { organizationId } = req.user!;
+        const { id } = req.params;
       
       if (!id || typeof id !== 'string') {
         return res.status(400).json({
@@ -164,7 +172,7 @@ export class FileController {
         });
       }
 
-      await this.fileService.deleteById(id);
+      await this.fileService.deleteById(id, organizationId);
 
       return res.status(204).send();
     } catch (error) {

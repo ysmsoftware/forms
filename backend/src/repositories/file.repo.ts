@@ -4,6 +4,7 @@ import { FileAsset } from "@prisma/client";
 export interface IFileRepository {
 
     create(data: {
+        organizationId?: string,
         url: string;
         storageKey: string;
         mimeType: string;
@@ -17,13 +18,13 @@ export interface IFileRepository {
         expiresAt?: Date;
     }): Promise<FileAsset>;
 
-    findById(id: string): Promise<FileAsset | null>;
+    findById(id: string, organizationId: string,): Promise<FileAsset | null>;
 
-    findByContactId(contactId: string): Promise<FileAsset[]>;
+    findByContactId(contactId: string, organizationId: string,): Promise<FileAsset[]>;
 
-    findByEventId(eventId: string): Promise<FileAsset[]>;
+    findByEventId(eventId: string, organizationId: string,): Promise<FileAsset[]>;
 
-    deleteById(id: string): Promise<FileAsset | null>;
+    deleteById(id: string, organizationId: string,): Promise<FileAsset | null>;
 
     updateContactIdByUrls(urls: string[], contactId: string): Promise<number>;
 
@@ -34,6 +35,7 @@ export interface IFileRepository {
 export class FileRepository implements IFileRepository {
 
     async create(data: {
+        organizationId?: string,
         url: string;
         storageKey: string;
         mimeType: string;
@@ -49,29 +51,29 @@ export class FileRepository implements IFileRepository {
         return prisma.fileAsset.create({ data });
     }
 
-    async findById(id: string): Promise<FileAsset | null> {
+    async findById(id: string, organizationId: string,): Promise<FileAsset | null> {
         return prisma.fileAsset.findUnique({
-            where: { id },
+            where: { id, organizationId},
         });
     }
 
-    async findByContactId(contactId: string): Promise<FileAsset[]> {
+    async findByContactId(contactId: string, organizationId: string,): Promise<FileAsset[]> {
         return prisma.fileAsset.findMany({
-            where: { contactId },
+            where: { contactId, organizationId},
             orderBy: { createdAt: "desc" },
         });
     }
 
-    async findByEventId(eventId: string): Promise<FileAsset[]> {
+    async findByEventId(eventId: string, organizationId: string,): Promise<FileAsset[]> {
         return prisma.fileAsset.findMany({
-            where: { eventId },
+            where: { eventId, organizationId, },
             orderBy: { createdAt: "desc" },
         });
     }
 
-    async deleteById(id: string): Promise<FileAsset | null> {
+    async deleteById(id: string, organizationId: string,): Promise<FileAsset | null> {
         return prisma.fileAsset.delete({
-            where: { id },
+            where: { id, organizationId, },
         });
     }
 

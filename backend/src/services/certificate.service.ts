@@ -1,4 +1,4 @@
-import { NotFoundError } from '../errors/http-errors';
+import { ForbiddenError, NotFoundError } from '../errors/http-errors';
 import { certificateQueue } from '../queues/certificate.queue';
 import { ISubmissionRepository } from '../repositories/submission.repo';
 import { ICertificateRepository } from './../repositories/certificate.repo';
@@ -22,6 +22,7 @@ export class CertificateService {
     ) { }
 
     async issueCertificates(
+        organizationId: string,
         submissionIds: string[],
         paramOverrides?: Record<string, string>
     ): Promise<IssueResult[]> {
@@ -37,7 +38,7 @@ export class CertificateService {
             const batchResults = await Promise.all(
                 batch.map(submissionId => limit(async () => {
                     try {
-                        const data = await this.issueCertificate(submissionId, paramOverrides);
+                        const data = await this.issueCertificate(organizationId, submissionId, paramOverrides);
                         return { submissionId, success: true as const, data };
                     } catch (error) {
                         return { submissionId, success: false as const, error: error as Error };
@@ -51,10 +52,13 @@ export class CertificateService {
         return results;
     }
 
-    private async issueCertificate(submissionId: string, paramOverrides?: Record<string, string>) {
+    private async issueCertificate(organizationId: string, submissionId: string, paramOverrides?: Record<string, string>) {
         const submission = await this.submissionRepo.findSubmissionById(submissionId);
         if (!submission) {
             throw new NotFoundError("Submission not found");
+        }
+        if (submission.organizationId && submission.organizationId !== organizationId) {
+            throw new ForbiddenError("Submission does not belong to this organization");
         }
 
         const existing = await this.certificateRepo.findBySubmissionId(submissionId);
@@ -63,12 +67,13 @@ export class CertificateService {
         }
 
         if (!existing) {
-            const event = await this.eventService.findbyId(submission.eventId);
+            const event = await this.eventService.findbyId(submission.eventId, organizationId);
             if (!event) {
                 throw new NotFoundError("Event not found");
             }
 
             const certificate = await this.certificateRepo.create({
+                organizationId: submission.organizationId ?? undefined,
                 submissionId,
                 ...(submission.contactId && { contactId: submission.contactId }),
                 eventId: submission.eventId,
@@ -114,8 +119,8 @@ export class CertificateService {
         }
 
     }
-    
-    async getAll(filters: {
+
+    async getAll(organizationId: string, filters: {
         eventId?: string;
         status?: CertificateStatus;
         templateType?: CertificateTemplateType;
@@ -131,10 +136,15 @@ export class CertificateService {
         limit: number;
         totalPages: number;
     }> {
-        const page  = filters.page  ?? 1;
+        const page = filters.page ?? 1;
         const limit = filters.limit ?? 25;
 
-        const { items, total } = await this.certificateRepo.findAll({ ...filters, page, limit });
+        const { items, total } = await this.certificateRepo.findAll({
+            organizationId,
+            ...filters,
+            page,
+            limit
+        });
 
         return {
             items: items.map(cert => this.mapCert(cert)),
@@ -147,26 +157,26 @@ export class CertificateService {
 
     private mapCert = (cert: CertificateWithRelations) => {
         return {
-            id:           cert.id,
+            id: cert.id,
             submissionId: cert.submissionId,
-            status:       cert.status,
+            status: cert.status,
             templateType: cert.templateType,
-            issuedAt:     cert.issuedAt,
+            issuedAt: cert.issuedAt,
             event: cert.event
                 ? { id: cert.event.id, title: cert.event.title }
                 : null,
             contact: cert.contact
                 ? { id: cert.contact.id, name: cert.contact.name, email: cert.contact.email }
                 : null,
-            fileUrl:  cert.fileAsset?.url  ?? null,
+            fileUrl: cert.fileAsset?.url ?? null,
             fileName: cert.fileAsset?.name ?? null,
         };
     }
 
-    async getByEventId(eventId: string, page?: number, limit?: number) {
+    async getByEventId(organizationId: string, eventId: string, page?: number, limit?: number) {
         const pageNum = page ?? 1;
         const limitNum = limit ?? 20;
-        const { items, total } = await this.certificateRepo.findByEventId(eventId, pageNum, limitNum);
+        const { items, total } = await this.certificateRepo.findByEventId(organizationId, eventId, pageNum, limitNum);
         return {
             items: items.map(cert => this.mapCert(cert)),
             total,
@@ -196,7 +206,7 @@ export class CertificateService {
         return data;
     }
 
-    async resolveCertificateParams(submissionId: string): Promise<{
+    async resolveCertificateParams(organizationId: string, submissionId: string): Promise<{
         resolved: Record<string, string>;
         missing: string[];
     }> {
@@ -205,7 +215,11 @@ export class CertificateService {
             throw new NotFoundError("Submission not found");
         }
 
-        const event = await this.eventService.findbyId(submission.eventId);
+        if (submission.organizationId !== organizationId) {
+            throw new ForbiddenError("Unauthorized");
+        }
+
+        const event = await this.eventService.findbyId(submission.eventId, organizationId);
         if (!event) {
             throw new NotFoundError("Event not found");
         }
@@ -240,24 +254,25 @@ export class CertificateService {
     private readonly TEMPLATE_REQUIRED_FIELDS: Record<string, string[]> = {
         ACHIEVEMENT: ["achievementTitle"],
         APPOINTMENT: ["position", "startDate", "probation", "location"],
-        COMPLETION:  ["eventTitle"],
-        INTERNSHIP:  ["domain", "startDate", "endDate"],
-        WORKSHOP:    ["workshopTitle"],
+        COMPLETION: ["eventTitle"],
+        INTERNSHIP: ["domain", "startDate", "endDate"],
+        WORKSHOP: ["workshopTitle"],
     };
 
     private readonly TEMPLATE_OPTIONAL_FIELDS: Record<string, string[]> = {
         ACHIEVEMENT: ["description", "signatoryName"],
         APPOINTMENT: ["companyName", "salary"],
-        COMPLETION:  [],
-        INTERNSHIP:  ["signatoryName", "signatoryTitle"],
-        WORKSHOP:    [],
+        COMPLETION: [],
+        INTERNSHIP: ["signatoryName", "signatoryTitle"],
+        WORKSHOP: [],
     };
 
     async resolveParamsForTemplate(
+        organizationId: string,
         contactId: string,
         templateType: string
     ): Promise<{ resolved: Record<string, string>; missing: string[] }> {
-        const contact = await this.contactRepo.findById(contactId);
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if (!contact) throw new NotFoundError("Contact not found");
 
         const today = new Date().toLocaleDateString("en-US", {
@@ -290,14 +305,16 @@ export class CertificateService {
     }
 
     async issueDirectCertificate(
+        organizationId: string,
         contactId: string,
         templateType: CertificateTemplateType,
         paramOverrides: Record<string, string>
     ): Promise<{ id: string; status: string }> {
-        const contact = await this.contactRepo.findById(contactId);
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if (!contact) throw new NotFoundError("Contact not found");
 
         const certificate = await this.certificateRepo.createDirect({
+            organizationId,
             contactId,
             templateType,
             status: "QUEUED",

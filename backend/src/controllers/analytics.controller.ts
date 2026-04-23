@@ -10,7 +10,8 @@ export class AnalyticsController {
 
     getGlobalStats = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const result = await this.analyticsService.getGlobalStats();
+            const { organizationId } = req.user!;
+            const result = await this.analyticsService.getGlobalStats(organizationId);
 
             res.status(200).json({
                 success: true,
@@ -24,11 +25,12 @@ export class AnalyticsController {
 
     getEventAnalytics = async (req: Request, res: Response, next: NextFunction) => {
         try {   
+            const { organizationId } = req.user!;
             const eventId = req.params.eventId as string;
 
             if(!eventId) throw new BadRequestError("Event ID is needed for analytics");
 
-            const result = await this.analyticsService.getEventAnalytics(eventId);
+            const result = await this.analyticsService.getEventAnalytics(eventId, organizationId);
 
             res.status(200).json({
                 success: true,
@@ -42,6 +44,7 @@ export class AnalyticsController {
 
     getDailyAnalytics = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const eventId = req.params.eventId as string;
 
             if (!eventId) throw new BadRequestError("Event ID is needed for daily analytics");
@@ -52,7 +55,7 @@ export class AnalyticsController {
                 throw new BadRequestError("days must be a number between 1 and 365");
             }
 
-            const result = await this.analyticsService.getEventAnalyticsRange(eventId, days);
+            const result = await this.analyticsService.getEventAnalyticsRange(eventId, organizationId, days);
 
             res.status(200).json({
                 success: true,

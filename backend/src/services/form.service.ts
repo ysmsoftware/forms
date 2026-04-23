@@ -14,7 +14,7 @@ export class FormService {
         private eventRepo: IEventRepository
     ) { }
 
-    async createForm(userId: string, eventId: string, data: FormInput): Promise<FormResponseDTO> {
+    async createForm(organizationId: string, eventId: string, data: FormInput): Promise<FormResponseDTO> {
 
         // Check if event exits
         const event = await this.eventRepo.findById(eventId);
@@ -23,7 +23,7 @@ export class FormService {
             throw new NotFoundError("Event not found");
         }
 
-        if (event.userId != userId) {
+        if (event.organizationId !== organizationId) {
             throw new ForbiddenError("You are not authorized to create this form");
         }
 
@@ -37,13 +37,13 @@ export class FormService {
 
     }
 
-    async upsertForm(userId: string, eventId: string, data: FormInput): Promise<FormResponseDTO> {
+    async upsertForm(organizationId: string, eventId: string, data: FormInput): Promise<FormResponseDTO> {
         const event = await this.eventRepo.findById(eventId);
 
         if (!event) {
             throw new NotFoundError("Event not found");
         }
-        if (event.userId != userId) {
+        if (event.organizationId !== organizationId) {
             throw new ForbiddenError("You are not authorized to update this form");
         }
         if (event.status === "ACTIVE") {
@@ -68,23 +68,23 @@ export class FormService {
         return toFormResponseDTO(updatedForm);
     }
 
-    async getFormByEvent(userId: string, eventId: string): Promise<FormResponseDTO> {
+    async getFormByEvent(organizationId: string, eventId: string): Promise<FormResponseDTO> {
         const form = await this.formRepo.findByEventId(eventId);
 
         if (!form) throw new NotFoundError("Form not found");
 
         const event = await this.eventRepo.findById(form.eventId);
-        if (event!.userId !== userId) throw new ForbiddenError("You are not authorized to view this form");
+        if (event!.organizationId !== organizationId) throw new ForbiddenError("You are not authorized to view this form");
 
         return toFormResponseDTO(form)
     }
 
-    async getFormById(userId: string, formId: string): Promise<FormResponseDTO> {
+    async getFormById(organizationId: string, formId: string): Promise<FormResponseDTO> {
         const form = await this.formRepo.findById(formId);
         if (!form) throw new NotFoundError("Form not found");
 
         const event = await this.eventRepo.findById(form.eventId);
-        if (event!.userId !== userId) {
+        if (event!.organizationId !== organizationId) {
             throw new ForbiddenError("You are not authorized to view this form");
         }
 
@@ -103,12 +103,12 @@ export class FormService {
         });
     }
 
-    async publishForm(userId: string, formId: string): Promise<FormResponseDTO> {
+    async publishForm(organizationId: string, formId: string): Promise<FormResponseDTO> {
         const form = await this.formRepo.findById(formId);
         if (!form) throw new NotFoundError("Form not found");
 
         const event = await this.eventRepo.findById(form.eventId);
-        if (!event || event.userId !== userId) {
+        if (!event || event.organizationId !== organizationId) {
             throw new ForbiddenError("You are not authorized to publish this form");
         }
 
@@ -124,12 +124,12 @@ export class FormService {
         return toFormResponseDTO(publishedForm);
     }
 
-    async deleteForm(userId: string, formId: string): Promise<void> {
+    async deleteForm(organizationId: string, formId: string): Promise<void> {
         const form = await this.formRepo.findById(formId);
         if (!form) throw new NotFoundError("Form not found");
 
         const event = await this.eventRepo.findById(form.eventId);
-        if (event!.userId !== userId) throw new ForbiddenError("You are not authorized to delete this form");
+        if (event!.organizationId !== organizationId) throw new ForbiddenError("You are not authorized to delete this form");
 
         await this.formRepo.deleteForm(formId);
 

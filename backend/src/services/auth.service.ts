@@ -23,14 +23,14 @@ export class AuthService {
         if (existing) throw new ConflictError("User already exists");
 
         const passwordHash = await hashPassword(data.password);
-        const user = await this.userRepository.createUser({
+        const { user, organizationId } = await this.userRepository.createUserWithOrg({
             name: data.name,
             email: data.email,
             passwordHash,
         });
 
-        const accessToken  = createAccessToken({ userId: user.id });
-        const refreshToken = createRefreshToken({ userId: user.id });
+        const accessToken  = createAccessToken({ userId: user.id , organizationId });
+        const refreshToken = createRefreshToken({ userId: user.id, organizationId  });
 
         await redis.set(refreshKey(user.id), refreshToken, "EX", REFRESH_TTL_SECONDS);
 
@@ -44,8 +44,13 @@ export class AuthService {
         const isMatch = await comparePassword(data.password, user.passwordHash);
         if (!isMatch) throw new UnauthorizedError("Invalid credentials");
 
-        const accessToken  = createAccessToken({ userId: user.id });
-        const refreshToken = createRefreshToken({ userId: user.id });
+        const membership = await this.userRepository.findOrgMembership(user.id);
+        if(!membership) throw new UnauthorizedError("User has no active organization")
+
+        const { organizationId } = membership;
+
+        const accessToken  = createAccessToken({ userId: user.id, organizationId });
+        const refreshToken = createRefreshToken({ userId: user.id, organizationId });
 
         // Overwrite any existing session — one active refresh token per user
         await redis.set(refreshKey(user.id), refreshToken, "EX", REFRESH_TTL_SECONDS);
@@ -75,7 +80,7 @@ export class AuthService {
      * then rotates both tokens (old refresh token is invalidated immediately).
      */
     async refreshTokens(incomingToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-        let payload: { userId: string };
+        let payload: { userId: string, organizationId: string };
         try {
             payload = verifyRefreshToken(incomingToken);
         } catch {
@@ -87,8 +92,8 @@ export class AuthService {
             throw new UnauthorizedError("Refresh token has been revoked");
         }
 
-        const accessToken  = createAccessToken({ userId: payload.userId });
-        const refreshToken = createRefreshToken({ userId: payload.userId });
+        const accessToken  = createAccessToken({ userId: payload.userId, organizationId: payload.organizationId });
+        const refreshToken = createRefreshToken({ userId: payload.userId, organizationId: payload.organizationId });
 
         // Rotate: old token is replaced, cannot be reused
         await redis.set(refreshKey(payload.userId), refreshToken, "EX", REFRESH_TTL_SECONDS);

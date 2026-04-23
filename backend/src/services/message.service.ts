@@ -12,6 +12,7 @@ import {
 
 
 type SendMessageInput = {
+    organizationId: string;
     contactId: string,
     eventId?: string,
     type: MessageType,
@@ -42,11 +43,12 @@ export class MessageService {
     ) { }
 
     private async resolveTemplateParams(
-        contactId: string,
         template: MessageTemplate,
+        contactId: string,
+        organizationId: string,
         eventId?: string
     ): Promise<{ resolved: Record<string, string>; missing: string[]; resolvedEventId?: string | undefined }> {
-        const contact = await this.contactRepo.findById(contactId);
+        const contact = await this.contactRepo.findById(contactId, organizationId);
         if (!contact) {
             throw new NotFoundError("Contact not found");
         }
@@ -115,13 +117,14 @@ export class MessageService {
     }
 
     async resolveParams(input: {
+        organizationId: string;
         contactId: string
         eventId?: string
         template: string
     }): Promise<{ resolved: Record<string, string>; missing: string[] }> {
         const template = MessageTemplate[input.template as keyof typeof MessageTemplate];
         if (!template) throw new BadRequestError("Invalid template");
-        const { resolved, missing } = await this.resolveTemplateParams(input.contactId, template, input.eventId);
+        const { resolved, missing } = await this.resolveTemplateParams(template,input.contactId, input.organizationId, input.eventId);
         return { resolved, missing };
     }
 
@@ -137,9 +140,10 @@ export class MessageService {
         }
 
         const { resolved: resolvedParams, resolvedEventId } = await this.resolveTemplateParams(
-            input.contactId,
             template,
-            input.eventId
+            input.contactId,
+            input.organizationId,
+            input.eventId,
         );
 
         const mergedParams: any = { ...resolvedParams, ...input.params };
@@ -160,6 +164,7 @@ export class MessageService {
         }
 
         const log = await this.messageRepo.create({
+            organizationId: input.organizationId,
             contactId: input.contactId,
             ...(resolvedEventId && { eventId: resolvedEventId }),
             type: input.type,
@@ -199,6 +204,7 @@ export class MessageService {
     }
 
     async getMessages(
+        organizationId: string,
         contactId?: string,
         eventId?: string,
         email?: string,
@@ -211,6 +217,7 @@ export class MessageService {
         if (offset !== undefined) options.offset = offset;
 
         return this.messageRepo.getMessages( {
+            organizationId,
             ...(contactId && { contactId }),
             ...(eventId && { eventId }),
             ...(email && { email }),
@@ -220,8 +227,8 @@ export class MessageService {
         });
     }
 
-    async retryFailedMessages() {
-        let failedMsg =  await this.messageRepo.findFailedMessages();
+    async retryFailedMessages(organizationId: string) {
+        let failedMsg =  await this.messageRepo.findFailedMessages(organizationId);
 
         if(!failedMsg || failedMsg.length === 0) {
             throw new NotFoundError("No Failed Messages found");

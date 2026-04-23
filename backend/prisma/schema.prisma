@@ -9,6 +9,13 @@ datasource db {
 }
 
 // ENUMS
+
+enum OrgRole {
+    OWNER
+    ADMIN
+    MEMBER
+}
+
 enum Role {
   ADMIN
   USER
@@ -85,7 +92,53 @@ enum ContactEventSource {
 }
 
 
+// ─────────────────────────────────────────────
+// Organization
+// ─────────────────────────────────────────────
+
+model Organization {
+    id          String      @id @default(uuid())
+    name        String
+    slug        String      @unique
+    isActive    Boolean     @default(true)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+
+    members         OrganizationMember[]
+    events          Event[]
+    contacts        Contact[]
+    tags            Tag[]
+    fileAssets      FileAsset[]
+    formSubmissions FormSubmission[]
+    certificates    Certificate[]
+    payments        Payment[]
+    messageLogs     MessageLog[]
+    eventAnalytics  EventAnalytics[]
+    dailyAnalytics  EventAnalyticsDaily[]
+}
+
+model OrganizationMember {
+    id              String      @id  @default(uuid())
+    organizationId  String
+    userId          String
+    role            OrgRole     @default(MEMBER)
+    isActive        Boolean     @default(true)
+    joinedAt        DateTime    @default(now())
+
+
+    organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([organizationId, userId])
+    @@index([organizationId])
+    @@index([userId])
+}
+
+
+
+// ─────────────────────────────────────────────
 // USER & AUTH
+// ─────────────────────────────────────────────
 model User {
   id            String      @id @default(uuid())
   name          String
@@ -97,11 +150,13 @@ model User {
   updatedAt     DateTime    @updatedAt
 
   events Event[]
+  organizationMembers   OrganizationMember[]
 }
 
 // EVENT
 model Event {
   id              String        @id @default(uuid())
+  organizationId  String
   userId          String
   title           String
   slug            String        @unique
@@ -118,6 +173,7 @@ model Event {
   bannerUrl       String?
 
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   form            Form?
   visitSessions   VisitSession[]
   contactEvents   ContactEvent[]
@@ -129,7 +185,7 @@ model Event {
   dailyAnalytics  EventAnalyticsDaily[]
   fileAssets      FileAsset[]
 
-
+  @@index([organizationId])
   @@index([userId])
   @@index([slug])
   @@index([status])
@@ -237,22 +293,27 @@ model VisitSession {
 
 // CONTACT (DEDUPED GLOBAL USER)
 model Contact {
-  id            String      @id @default(uuid())
-  name          String?
-  email         String?     @unique
-  phone         String?     @unique
-  createdAt     DateTime    @default(now())
-  isDeleted     Boolean     @default(false)
-  updatedAt     DateTime    @updatedAt
+  id                String      @id @default(uuid())
+  organizationId    String
+  name              String?
+  email             String?
+  phone             String?
+  createdAt         DateTime    @default(now())
+  isDeleted         Boolean     @default(false)
+  updatedAt         DateTime    @updatedAt
 
-  contactEvents   ContactEvent[]
-  formSubmissions FormSubmission[]
-  payments        Payment[]
-  certificates    Certificate[]
-  messageLogs     MessageLog[]
-  tags            ContactTag[]
-  fileAssets       FileAsset[]
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)     
+  contactEvents     ContactEvent[]
+  formSubmissions   FormSubmission[]
+  payments          Payment[]
+  certificates      Certificate[]
+  messageLogs       MessageLog[]
+  tags              ContactTag[]
+  fileAssets        FileAsset[]
 
+  @@unique([organizationId, email])
+  @@unique([organizationId, phone])
+  @@index([organizationId])
   @@index([email])
   @@index([phone])
   @@index([createdAt])
@@ -277,23 +338,28 @@ model ContactEvent {
 
 // FORM SUBMISSIONS
 model FormSubmission {
-  id          String           @id @default(uuid())
-  formId      String
-  eventId     String
-  visitorId   String
-  contactId   String?
-  status      SubmissionStatus @default(SUBMITTED)
-  isDeleted   Boolean          @default(false)
-  submittedAt DateTime         @default(now())
+  id                String           @id @default(uuid())
+  organizationId    String
+  formId            String
+  eventId           String
+  visitorId         String
+  contactId         String?
+  status            SubmissionStatus @default(SUBMITTED)
+  isDeleted         Boolean          @default(false)
+  submittedAt       DateTime         @default(now())
 
-  form    Form               @relation(fields: [formId], references: [id], onDelete: Cascade)
-  event   Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  visitor Visitor            @relation(fields: [visitorId], references: [id], onDelete: Cascade)
-  contact Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  answers SubmissionAnswer[]
-  payment Payment?
-  certificate Certificate?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  form              Form               @relation(fields: [formId], references: [id], onDelete: Cascade)
+  event             Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  visitor           Visitor            @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  contact           Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  answers           SubmissionAnswer[]
+  payment           Payment?
+  certificate       Certificate?
 
+  @@index([organizationId, submittedAt])
+  @@index([organizationId, status])
+  @@index([organizationId])
   @@index([formId])
   @@index([eventId])
   @@index([visitorId])
@@ -324,10 +390,15 @@ model SubmissionAnswer {
 
 // TAGGING & FOLLOW-UPS
 model Tag {
-  id   String @id @default(uuid())
-  name String @unique
+  id                String @id @default(uuid())
+  organizationId    String
+  name              String
 
-  contacts ContactTag[]
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contacts          ContactTag[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model ContactTag {
@@ -346,6 +417,7 @@ model ContactTag {
 // ANALYTICS (REDIS → DB)
 model EventAnalytics {
   id              String   @id @default(uuid())
+  organizationId  String
   eventId         String   @unique
   totalVisits     Int      @default(0)
   totalStarted    Int      @default(0)
@@ -353,13 +425,16 @@ model EventAnalytics {
   conversionRate  Float    @default(0)
   lastUpdated     DateTime @default(now()) 
 
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   
+  @@index([organizationId])
   @@index([eventId])
 }
 
 model EventAnalyticsDaily {
     id                  String      @id @default(uuid())
+    organizationId      String
     eventId             String
     date                DateTime
     visits              Int         @default(0)
@@ -368,9 +443,11 @@ model EventAnalyticsDaily {
     conversionRate      Float       @default(0)
     createdAt           DateTime    @default(now())
 
+    organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
     @@unique([eventId, date])
+    @@index([organizationId, date])
     @@index([eventId, date])
 }
 
@@ -379,6 +456,7 @@ model EventAnalyticsDaily {
 
 model Payment {
   id                String        @id @default(uuid())
+  organizationId    String
   eventId           String
   submissionId      String        @unique
   contactId         String?
@@ -396,10 +474,14 @@ model Payment {
   createdAt         DateTime      @default(now())
   isDeleted         Boolean       @default(false)
 
-  event      Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  contact    Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event             Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  submission        FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  contact           Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([organizationId])
   @@index([eventId,status])
   @@index([submissionId,status])
   @@index([eventId, createdAt])
@@ -412,21 +494,25 @@ model Payment {
 // CERTIFICATES
 
 model Certificate {
-  id             String             @id @default(uuid())
-  submissionId   String?            @unique
-  contactId      String?
-  eventId        String?
-  fileAssetId    String?
-  status         CertificateStatus   @default(QUEUED)
-  templateType   CertificateTemplateType   @default(COMPLETION)
-  issuedAt       DateTime?           
-  isDeleted      Boolean            @default(false)
+  id                String             @id @default(uuid())
+  organizationId    String?
+  submissionId      String?            @unique
+  contactId         String?
+  eventId           String?
+  fileAssetId       String?
+  status            CertificateStatus   @default(QUEUED)
+  templateType      CertificateTemplateType   @default(COMPLETION)
+  issuedAt          DateTime?           
+  isDeleted         Boolean            @default(false)
 
-  submission FormSubmission?         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  contact    Contact?                @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  event      Event?                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  fileAsset  FileAsset? @relation(fields: [fileAssetId], references: [id])
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  submission    FormSubmission?         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  contact       Contact?                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  event         Event?                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fileAsset     FileAsset? @relation(fields: [fileAssetId], references: [id])
 
+  @@index([organizationId])
+  @@index([organizationId, status])
   @@index([contactId])
   @@index([eventId])
 
@@ -435,6 +521,7 @@ model Certificate {
 // MESSAGING / CAMPAIGNS
 model MessageLog {
   id                String          @id @default(uuid())
+  organizationId    String
   contactId         String
   eventId           String?
   type              MessageType
@@ -444,13 +531,19 @@ model MessageLog {
   sentAt            DateTime?
   providerResponse  Json?
   errorMessage      String?
-  attemptCount          Int             @default(1)
+  attemptCount      Int             @default(1)
   isDeleted         Boolean         @default(false)
   createdAt         DateTime        @default(now())
-
+    
+  organization      Organization?   @relation(fields: [organizationId], references: [id])
   contact           Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
   event             Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([organizationId])
   @@index([contactId])
   @@index([eventId])
   @@index([status])
@@ -462,6 +555,7 @@ model MessageLog {
 // File Assets (for form uploads, etc.)
 model FileAsset {
     id              String @id @default(uuid())
+    organizationId  String?
     url             String
     storageKey      String
     mimeType        String
@@ -475,13 +569,32 @@ model FileAsset {
     expiresAt       DateTime?
     createdAt       DateTime  @default(now())
 
-    contact       Contact? @relation(fields: [contactId], references: [id])
-    event         Event?  @relation(fields: [eventId], references: [id])
+    organization    Organization?   @relation(fields: [organizationId], references: [id])
+    contact         Contact? @relation(fields: [contactId], references: [id])
+    event           Event?  @relation(fields: [eventId], references: [id])
 
-    certificate Certificate[]
+    certificate     Certificate[]
 
+    @@index([organizationId])
     @@index([url])
     @@index([contactId])
     @@index([eventId])
     @@index([expiresAt])
+}
+
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  entityType     String   // "Event" | "Form" | "Contact" | "Certificate"
+  entityId       String
+  action         String   // "created" | "updated" | "published" | "closed" | "deleted"
+  actorId        String?  // null for anonymous/system; userId for authenticated users
+  actorType      String   @default("user") // "user" | "system" | "anonymous"
+  metadata       Json?    // lightweight context only — e.g. { newStatus: "ACTIVE" }, NOT full diffs
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, actorId])
+  @@index([organizationId, createdAt])
 }

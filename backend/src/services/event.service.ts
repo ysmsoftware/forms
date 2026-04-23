@@ -7,17 +7,18 @@ import { ForbiddenError, NotFoundError } from "../errors/http-errors";
 
 export class EventService {
 
-    constructor(private eventRepositor: IEventRepository) {}
+    constructor(private eventRepository: IEventRepository) { }
 
-    async createEvent(data: EventInput, userId: string): Promise<EventResponseDTO> {
+    async createEvent(data: EventInput, userId: string, organizationId: string): Promise<EventResponseDTO> {
         let slug = createSlug(data.title);
-        const isExisting = await this.eventRepositor.findBySlug(slug);
+        const isExisting = await this.eventRepository.findBySlug(slug);
         if (isExisting) {
             slug = `${slug}-${generateRandomString(4)}`;
         }
 
-        const event = await this.eventRepositor.createEvent({
+        const event = await this.eventRepository.createEvent({
             userId,
+            organizationId,
             title: data.title,
             slug,
             description: data.description ?? undefined,
@@ -37,12 +38,12 @@ export class EventService {
         return toEventResponseDTO(event);
     }
 
-    async updateEvent(id: string, userId: string, data: EventUpdate): Promise<EventResponseDTO> {
-        const event = await this.eventRepositor.findById(id);
+    async updateEvent(id: string, organizationId: string, data: EventUpdate): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
         if (!event) throw new NotFoundError(`No Event found`);
-        if (event.userId !== userId) throw new ForbiddenError("Unauthorized access");
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
 
-        const updatedEvent = await this.eventRepositor.update(id, {
+        const updatedEvent = await this.eventRepository.update(id, {
             title: data.title ?? undefined,
             description: data.description ?? undefined,
             status: data.status ?? undefined,
@@ -59,42 +60,49 @@ export class EventService {
         return toEventResponseDTO(updatedEvent);
     }
 
-    async findbySlug(slug: string): Promise<EventResponseDTO | null> {
-        const event = await this.eventRepositor.findBySlug(slug);
+    async findbySlug(slug: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findBySlug(slug);
         if (!event) throw new NotFoundError(`No Event found by ${slug}`);
         return toEventResponseDTO(event);
     }
 
-    async findbyId(id: string): Promise<EventResponseDTO | null> {
-        const event = await this.eventRepositor.findById(id);
+    async findbyId(id: string, organizationId: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
         if (!event) throw new NotFoundError(`No Event found by ${id}`);
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
         return toEventResponseDTO(event);
     }
 
+    async findByOrganization(organizationId: string): Promise<EventResponseDTO[]> {
+        const events = await this.eventRepository.findByOrganization(organizationId);
+        return events.map(toEventResponseDTO);
+    }
+
     async findByUser(userId: string): Promise<EventResponseDTO[]> {
-        const events = await this.eventRepositor.findByUser(userId);
+        const events = await this.eventRepository.findByUser(userId);
         if (!events) return [];
         return events.map(toEventResponseDTO);
     }
 
-    async publishEvent(id: string, userId: string): Promise<EventResponseDTO> {
-        const event = await this.eventRepositor.findById(id);
+
+    async publishEvent(id: string, organizationId: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
         if (!event) throw new NotFoundError("No Event found");
-        if (event.userId !== userId) throw new ForbiddenError("You are not authorized to publish this event");
-        return toEventResponseDTO(await this.eventRepositor.publish(id));
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
+        return toEventResponseDTO(await this.eventRepository.publish(id));
     }
 
-    async closeEvent(id: string, userId: string): Promise<EventResponseDTO> {
-        const event = await this.eventRepositor.findById(id);
+    async closeEvent(id: string, organizationId: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
         if (!event) throw new NotFoundError("No Event found");
-        if (event.userId !== userId) throw new ForbiddenError("You are not authorized to close this event");
-        return toEventResponseDTO(await this.eventRepositor.close(id));
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
+        return toEventResponseDTO(await this.eventRepository.close(id));
     }
 
-    async deleteEvent(id: string, userId: string): Promise<EventResponseDTO> {
-        const event = await this.eventRepositor.findById(id);
+    async deleteEvent(id: string, organizationId: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
         if (!event) throw new NotFoundError("No Event found");
-        if (event.userId !== userId) throw new ForbiddenError("You are not authorized to delete this event");
-        return toEventResponseDTO(await this.eventRepositor.markAsDeleted(id));
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
+        return toEventResponseDTO(await this.eventRepository.markAsDeleted(id));
     }
 }

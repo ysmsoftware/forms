@@ -3,109 +3,117 @@ import { EventService } from "../services/event.service";
 
 export class EventController {
 
-    constructor(private eventService: EventService) {}
+    constructor(private eventService: EventService) { }
 
     // createEvent
 
     createEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
-            const result = await this.eventService.createEvent(req.body, userId);
+            const { id: userId, organizationId } = req.user!;
+            const result = await this.eventService.createEvent(req.body, userId, organizationId);
 
             res.status(201).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
 
     // updateEvent
-
     updateEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
-            const result = await this.eventService.updateEvent(req.params.id as string, userId, req.body);
+            const { organizationId } = req.user!;
+            const result = await this.eventService.updateEvent(req.params.id as string, organizationId, req.body);
 
-            res.status(200).json({ success: true, data: result});
+            res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
 
     // findBy id
-
-    findById = async (req: Request, res: Response, next: NextFunction) => {   
+    findById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const result = await this.eventService.findbyId(req.params.id as string);
+            const { organizationId } = req.user!;
+            const result = await this.eventService.findbyId(req.params.id as string, organizationId);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
 
     // finfBy slug
-
-    findBySlug  = async (req: Request, res: Response, next: NextFunction) => {   
+    findBySlug = async (req: Request, res: Response, next: NextFunction) => {
         try {
 
             const result = await this.eventService.findbySlug(req.params.slug as string);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
+            next(error);
+        }
+    }
+
+
+    findByOrganization = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = req.user!;
+            const result = await this.eventService.findByOrganization(organizationId);
+            res.status(200).json({ success: true, data: result });
+        } catch (error) {
             next(error);
         }
     }
 
     // findBy user
-
-    findByUser  = async (req: Request, res: Response, next: NextFunction) => {   
+    findByUser = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const userId = req.user!.id;
             const result = await this.eventService.findByUser(userId);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
 
-    publishEvent =  async (req: Request, res: Response, next: NextFunction) => {   
+    publishEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
-            const result = await this.eventService.publishEvent(req.params.id as string, userId);
+            const { organizationId } = req.user!;
+            const result = await this.eventService.publishEvent(req.params.id as string, organizationId);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
 
-     closeEvent =  async (req: Request, res: Response, next: NextFunction) => {   
+    closeEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
-            const result = await this.eventService.closeEvent(req.params.id as string, userId);
+            const { organizationId } = req.user!;
+            const result = await this.eventService.closeEvent(req.params.id as string, organizationId);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }
-    
-    deleteEvent =  async (req: Request, res: Response, next: NextFunction) => {   
+
+    deleteEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
-            const result = await this.eventService.deleteEvent(req.params.id as string, userId);
+            const { organizationId } = req.user!;
+            const result = await this.eventService.deleteEvent(req.params.id as string, organizationId);
 
             res.status(200).json({ success: true, data: result });
 
-        } catch(error) {
+        } catch (error) {
             next(error);
         }
     }

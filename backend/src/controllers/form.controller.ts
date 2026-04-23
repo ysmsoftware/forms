@@ -11,10 +11,10 @@ export class FormController {
     createForm = async (req: Request, res: Response, next: NextFunction) => {
         try {
             
-            const userId = req.user!.id;
+            const { id: userId, organizationId } = req.user!;
             const  eventId = req.params.eventId as string;
 
-            const result = await this.formService.createForm(userId, eventId, req.body);
+            const result = await this.formService.createForm(organizationId, eventId, req.body);
             
             logger.info("FORM_CREATED", { userId, eventId });
             
@@ -29,10 +29,10 @@ export class FormController {
 
     upsertForm = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
+            const { id: userId, organizationId } = req.user!;
             const eventId = req.params.eventId as string;
     
-            const result = await this.formService.upsertForm(userId, eventId, req.body)
+            const result = await this.formService.upsertForm(organizationId, eventId, req.body)
             
             logger.info("FORM_UPDATED", { userId, eventId });
             
@@ -46,10 +46,10 @@ export class FormController {
     // get form by event
     getFormByEvent  = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
+            const { organizationId } = req.user!;
             const eventId = req.params.eventId as string;
     
-            const result = await this.formService.getFormByEvent(userId, eventId );
+            const result = await this.formService.getFormByEvent(organizationId, eventId );
 
             res.status(200).json({ success: true, data: result });
         } catch (error) {
@@ -60,10 +60,10 @@ export class FormController {
     // get form by id
     getFormById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
+            const { organizationId } = req.user!;
             const formId = req.params.formId as string;
 
-            const result = await this.formService.getFormById(userId,formId);
+            const result = await this.formService.getFormById(organizationId, formId);
 
             res.status(200).json({ success: true, data: result });
         } catch (error) {
@@ -87,10 +87,10 @@ export class FormController {
     // publish form
     publishForm = async(req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
+            const { id: userId, organizationId } = req.user!;
             const formId = req.params.formId as string;
             
-            const result = await this.formService.publishForm(userId,formId);
+            const result = await this.formService.publishForm(organizationId, formId);
             logger.info("FORM_PUBLIISHED", { userId, formId });
 
             res.status(200).json({ success: true, data: result });
@@ -104,10 +104,10 @@ export class FormController {
 
     deleteForm = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userId = req.user!.id;
+            const { id: userId, organizationId } = req.user!;
             const formId = req.params.formId as string;
 
-            await this.formService.deleteForm(userId, formId);
+            await this.formService.deleteForm(organizationId, formId);
             logger.info("FORM_DELETED", { userId, formId });
 
 

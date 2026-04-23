@@ -4,26 +4,28 @@ import { prisma } from "../config/db";
 export interface IAnalyticsRepository {
 
     incrementEventTotals(data: {
+        organizationId: string;
         eventId: string;
         visitsDelta: number;
         startedDelta: number;
         submittedDelta: number;
     }): Promise<EventAnalytics>;
 
-    getEventAnalytics(eventId: string): Promise<EventAnalytics | null>;
+    getEventAnalytics(organizationId: string, eventId: string): Promise<EventAnalytics | null>;
 
-    getGlobalStats(): Promise<{
+    getGlobalStats(organizationId: string): Promise<{
         totalEvents: number;
         totalSubmissions: number;
         totalRevenue: number;
     }>;
 
-    getDailyAnalytics(eventId: string, fromDate: Date): Promise<EventAnalyticsDaily[]>;
+    getDailyAnalytics(organizationId: string, eventId: string, fromDate: Date): Promise<EventAnalyticsDaily[]>;
 }
 
 export class AnalyticsRepository implements IAnalyticsRepository {
 
     async incrementEventTotals(data: {
+        organizationId: string;
         eventId: string;
         visitsDelta: number;
         startedDelta: number;
@@ -35,6 +37,7 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         return  prisma.eventAnalytics.upsert({
             where: { eventId: data.eventId },
                 create: {
+                    organizationId: data.organizationId,
                     eventId: data.eventId,
                     totalVisits: data.visitsDelta,
                     totalStarted: data.startedDelta,
@@ -52,18 +55,18 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         })
     }
 
-    async getEventAnalytics(eventId: string): Promise<EventAnalytics | null> {
+    async getEventAnalytics(organizationId: string, eventId: string,): Promise<EventAnalytics | null> {
         return prisma.eventAnalytics.findUnique({
-            where: { eventId },
+            where: {  organizationId, eventId },
         });
     }
 
-    async getGlobalStats() {
+    async getGlobalStats(organizationId: string) {
         const [eventCount, submissionCount, revenue] = await Promise.all([
-            prisma.event.count(),
-            prisma.formSubmission.count(),
+            prisma.event.count({ where: { organizationId } }),
+            prisma.formSubmission.count({ where: { organizationId } }),
             prisma.payment.aggregate({
-                where: { status: "SUCCESS" },
+                where: { status: "SUCCESS", organizationId },
                 _sum: { amount: true },
             }),
         ]);
@@ -75,9 +78,10 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         };
     }
 
-    async getDailyAnalytics(eventId: string, fromDate: Date): Promise<EventAnalyticsDaily[]> {
+    async getDailyAnalytics(organizationId: string, eventId: string, fromDate: Date): Promise<EventAnalyticsDaily[]> {
         return prisma.eventAnalyticsDaily.findMany({
             where: {
+                organizationId,
                 eventId,
                 date: { gte: fromDate },
             },

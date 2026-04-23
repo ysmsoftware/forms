@@ -7,6 +7,7 @@ export class CertificateController {
 
     issue = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { submissionId, submissionIds, paramOverrides } = req.body;
 
             if (!submissionId && (!submissionIds || !Array.isArray(submissionIds) || submissionIds.length === 0)) {
@@ -18,7 +19,7 @@ export class CertificateController {
                 : [...new Set<string>(submissionIds)];
 
             const isBulk = !submissionId;
-            const results = await this.certificateService.issueCertificates(ids, paramOverrides);
+            const results = await this.certificateService.issueCertificates(organizationId, ids, paramOverrides);
 
             const summary = {
                 total: results.length,
@@ -58,6 +59,7 @@ export class CertificateController {
 
     getAll = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const {
                 eventId,
                 status,
@@ -79,7 +81,7 @@ export class CertificateController {
             if (page) filters.page = Number(page);
             if (limit) filters.limit = Number(limit);
 
-            const result = await this.certificateService.getAll(filters);
+            const result = await this.certificateService.getAll(organizationId, filters);
 
             return res.status(200).json({ success: true, data: result });
         } catch (error) {
@@ -89,6 +91,7 @@ export class CertificateController {
 
     getByEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { eventId } = req.params;
             const { page, limit } = req.query;
 
@@ -99,7 +102,7 @@ export class CertificateController {
             const pageNum = page ? Number(page) : 1;
             const limitNum = limit ? Number(limit) : 20;
 
-            const result = await this.certificateService.getByEventId(eventId, pageNum, limitNum);
+            const result = await this.certificateService.getByEventId( organizationId ,eventId, pageNum, limitNum);
 
             return res.status(200).json({
                 success: true,
@@ -110,36 +113,44 @@ export class CertificateController {
         }
     };
 
+    // Verify is intentionally public (no auth), no org scope
+    // Used for QR code verification use case
     verify = async (req: Request, res: Response, next: NextFunction) => {
-        const { certificateId } = req.query;
+        try {
+            const { certificateId } = req.query;
 
-        if (!certificateId || typeof certificateId !== 'string') {
-            return res.status(400).json({
-                message: "certificate is required"
+            if (!certificateId || typeof certificateId !== 'string') {
+                return res.status(400).json({
+                    message: "certificate is required"
+                });
+            }
+
+            const certificate = await this.certificateService.findById(certificateId);
+
+            if (!certificate) {
+                return res.status(404).json({ message: "Certificate not found" });
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: certificate
             });
+
+        } catch (error) {
+            next(error);
         }
-
-        const certificate = await this.certificateService.findById(certificateId);
-
-        if (!certificate) {
-            return res.status(404).json({ message: "Certificate not found" });
-        }
-
-        return res.status(200).json({
-            success: true,
-            data: certificate
-        });
 
 
     }
 
     resolveParams = async (req: Request, res: Response, next: NextFunction) => {
         try {
+             const { organizationId } = req.user!;
             const { submissionId } = req.body;
             if (!submissionId) {
                 return res.status(400).json({ success: false, message: "submissionId is required" });
             }
-            const result = await this.certificateService.resolveCertificateParams(submissionId);
+            const result = await this.certificateService.resolveCertificateParams(organizationId, submissionId);
             return res.status(200).json({ success: true, data: result });
         } catch (error) {
             next(error);
@@ -148,11 +159,12 @@ export class CertificateController {
 
     resolveParamsForTemplate = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, templateType } = req.body;
             if (!contactId || !templateType) {
                 return res.status(400).json({ success: false, message: "contactId and templateType are required" });
             }
-            const result = await this.certificateService.resolveParamsForTemplate(contactId, templateType);
+            const result = await this.certificateService.resolveParamsForTemplate(organizationId, contactId, templateType);
             return res.status(200).json({ success: true, data: result });
         } catch (error) {
             next(error);
@@ -161,11 +173,13 @@ export class CertificateController {
 
     issueDirect = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, templateType, paramOverrides } = req.body;
             if (!contactId || !templateType) {
                 throw new BadRequestError("contactId and templateType are required");
             }
             const result = await this.certificateService.issueDirectCertificate(
+                organizationId,
                 contactId,
                 templateType,
                 paramOverrides ?? {}

@@ -3,7 +3,10 @@ import { File } from "multer";
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string };
+      user?: { 
+            id: string 
+            organizationId: string
+        };
       id: string;
     }
 

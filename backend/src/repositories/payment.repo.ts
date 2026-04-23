@@ -5,6 +5,7 @@ import { prisma } from "../config/db";
 export interface IPaymentRepository {
 
     create(data: {
+        organizationId: string;
         eventId: string;
         submissionId: string;
         contactId?: string;
@@ -16,7 +17,7 @@ export interface IPaymentRepository {
 
     findBySubmissionId(submissionId: string): Promise<Payment | null>;
 
-    findById(id: string): Promise<Payment | null>;
+    findById(id: string, organizationId?: string): Promise<Payment | null>;
 
     findByRazorpayOrderId(orderId: string): Promise<Payment | null>;
 
@@ -43,6 +44,7 @@ export interface IPaymentRepository {
     }): Promise<Payment>
 
     findByEventIdPaginated(params: {
+        organizationId: string;
         eventId: string;
         limit: number;
         cursor?: string;
@@ -50,6 +52,7 @@ export interface IPaymentRepository {
     }): Promise<{ items: Payment[]; nextCursor: string | null }>;
 
     allPayments(params: {
+        organizationId: string;
         eventId?: string,
         contactId?: string,
         razorpayPaymentId?: string,
@@ -63,6 +66,7 @@ export interface IPaymentRepository {
 export class PaymentRepository implements IPaymentRepository {
 
     async create(data: { 
+        organizationId: string;
         eventId: string; 
         submissionId: string; 
         contactId?: string; 
@@ -72,6 +76,7 @@ export class PaymentRepository implements IPaymentRepository {
     }): Promise<Payment> {
         return await prisma.payment.create({ 
             data: {
+                organizationId: data.organizationId,
                 eventId: data.eventId,
                 submissionId: data.submissionId,
                 ...(data.contactId && { contactId: data.contactId}),
@@ -89,9 +94,12 @@ export class PaymentRepository implements IPaymentRepository {
         })
     }
 
-    async findById(id: string): Promise<Payment | null> {
+    async findById(id: string, organizationId?: string): Promise<Payment | null> {
         return await prisma.payment.findUnique({
-            where: { id }
+            where: { 
+                id,
+                ...(organizationId && { organizationId })
+            }
         })
     }
 
@@ -170,6 +178,7 @@ export class PaymentRepository implements IPaymentRepository {
     }
 
     async findByEventIdPaginated(params: {
+        organizationId: string;
         eventId: string;
         limit: number;
         cursor?: string;
@@ -177,6 +186,7 @@ export class PaymentRepository implements IPaymentRepository {
     }): Promise<{ items: Payment[]; nextCursor: string | null }> {
         const items = await prisma.payment.findMany({
             where: {
+                organizationId: params.organizationId,
                 eventId: params.eventId,
                 ...(params.status && { status: params.status })
             },
@@ -211,6 +221,7 @@ export class PaymentRepository implements IPaymentRepository {
     }
 
     async allPayments(params: {
+        organizationId: string;
         eventId?: string,
         contactId?: string,
         razorpayPaymentId?: string,
@@ -221,6 +232,7 @@ export class PaymentRepository implements IPaymentRepository {
 
         const items = await prisma.payment.findMany({
             where: {
+                organizationId: params.organizationId,
                 ...(params.eventId && { eventId: params.eventId }),
                 ...(params.contactId && { contactId: params.contactId }),
                 ...(params.razorpayPaymentId && { razorpayPaymentId: params.razorpayPaymentId }),

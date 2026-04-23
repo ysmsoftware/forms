@@ -2,7 +2,7 @@ import { IAnalyticsRepository } from "../repositories/analytics.repo";
 import { IEventRepository } from "../repositories/event.repo";
 import { redis } from "../config/redis";
 import logger from "../config/logger";
-import { NotFoundError } from "../errors/http-errors";
+import { ForbiddenError, NotFoundError } from "../errors/http-errors";
 import pLimit from "p-limit";
 
 export class AnalyticsService {
@@ -36,8 +36,15 @@ export class AnalyticsService {
             return;
         }
 
+        const event = await this.eventRepo.findById(eventId);
+        if (!event) {
+            logger.warn("Snapshot skipped - Event not found during snapshot", { eventId });
+            return;
+        }
+
         try {
             await this.analyticsRepo.incrementEventTotals({
+                organizationId: event.organizationId,
                 eventId,
                 visitsDelta,
                 startedDelta,
@@ -63,12 +70,16 @@ export class AnalyticsService {
     }
 
     // Admin: get analytics for one event
-    async getEventAnalytics(eventId: string) {
+    async getEventAnalytics(eventId: string, organizationId: string) {
         // check if event exist
         const event = await this.eventRepo.findById(eventId);
         if (!event) throw new NotFoundError("event not found");
 
-        const dbAnalytics = await this.analyticsRepo.getEventAnalytics(eventId);
+        if(!event.organizationId || event.organizationId !== organizationId) {
+            throw new ForbiddenError("Unauthorized");
+        }
+
+        const dbAnalytics = await this.analyticsRepo.getEventAnalytics(organizationId, eventId);
 
         const visitsKey = `analytics:event:${eventId}:visits:delta`;
         const startedKey = `analytics:event:${eventId}:started:delta`;
@@ -94,15 +105,22 @@ export class AnalyticsService {
     }
 
     // Admin: dashboard global stats
-    async getGlobalStats() {
-        return this.analyticsRepo.getGlobalStats();
+    async getGlobalStats(organizationId: string) {
+        return this.analyticsRepo.getGlobalStats(organizationId);
     }
 
-    async getEventAnalyticsRange(eventId: string, days: number) {
+    async getEventAnalyticsRange(eventId: string, organizationId: string, days: number) {
         const fromDate = new Date();
         fromDate.setDate(fromDate.getDate() - days);
 
-        const rows = await this.analyticsRepo.getDailyAnalytics(eventId, fromDate);
+        const event = await this.eventRepo.findById(eventId);
+        if (!event) throw new NotFoundError("event not found");
+
+        if(!event.organizationId || event.organizationId !== organizationId) {
+            throw new ForbiddenError("Unauthorized");
+        }
+
+        const rows = await this.analyticsRepo.getDailyAnalytics(organizationId, eventId, fromDate);
 
         // Build a lookup from date string → row
         const rowMap = new Map<string, { visits: number; started: number; submitted: number }>();

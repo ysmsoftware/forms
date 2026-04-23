@@ -10,12 +10,14 @@ export type ContactWithRelations = Contact & {
 export interface IContactRepository {
 
     createContact(data: {
+        organizationId: string;
         name?: string;
         email?: string;
         phone?: string;
     }): Promise<Contact>;
 
     updateContact(data: {
+        organizationId: string;
         id: string
         name?: string;
         email?: string;
@@ -23,19 +25,21 @@ export interface IContactRepository {
     }): Promise<Contact>;
 
     createManyContact(data: {
+        organizationId: string;
         name?: string;
         email?: string;
         phone?: string;
     }[]): Promise<number>;
 
-    softDeleteContact(id: string): Promise<void>;
-    restoreContact(id: string): Promise<void>;
+    softDeleteContact(organizationId: string, id: string): Promise<void>;
+    restoreContact(organizationId: string, id: string): Promise<void>;
 
-    findById(id: string): Promise<Contact | null>;
-    findByEmail(email: string): Promise<Contact | null>;
-    findByPhone(phone: string): Promise<Contact | null>;
+    findById(organizationId: string, id: string): Promise<Contact | null>;
+    findByEmail(organizationId: string, email: string): Promise<Contact | null>;
+    findByPhone(organizationId: string, phone: string): Promise<Contact | null>;
 
     findContactByEmailOrPhone(
+        organizationId: string,
         email?: string,
         phone?: string
     ): Promise<Contact | null>;
@@ -44,36 +48,37 @@ export interface IContactRepository {
      * Returns all event IDs linked to a contact via ContactEvent.
      * Used to auto-resolve eventId when sending messages from the Contacts tab.
      */
-    findByIdWithRelations(id: string): Promise<ContactWithRelations | null>;
+    findByIdWithRelations(organizationId: string, id: string): Promise<ContactWithRelations | null>;
 
     findEventIdsByContactId(contactId: string): Promise<string[]>;
 
-    findByIdOrThrow(id: string): Promise<Contact>;
+    findByIdOrThrow(organizationId: string, id: string): Promise<Contact>;
 
-    existsById(id: string): Promise<boolean>;
+    existsById(organizationId: string, id: string): Promise<boolean>;
 
-    findByIdIncludingDeleted(id: string): Promise<Contact | null>;
+    findByIdIncludingDeleted(organizationId: string, id: string): Promise<Contact | null>;
 
     listContacts(params: {
+        organizationId: string;
         search?: string;
         lastId?: string;
         take?: number;
     }): Promise<ContactWithRelations[]>;
 
-    countContacts(search?: string): Promise<number>;
+    countContacts(organizationId: string, search?: string): Promise<number>;
 
 }
 
 
 export class ContactRepository implements IContactRepository {
 
-    async createContact(data: { name?: string; email?: string; phone?: string; }): Promise<Contact> {
+    async createContact(data: { organizationId: string; name?: string; email?: string; phone?: string; }): Promise<Contact> {
         return prisma.contact.create({
             data
         });
     }
 
-    async updateContact(data: { id: string, name?: string; email?: string; phone?: string; }): Promise<Contact> {
+    async updateContact(data: { organizationId: string; id: string, name?: string; email?: string; phone?: string; }): Promise<Contact> {
         return prisma.contact.update({
             where: { id: data.id },
             data: {
@@ -85,6 +90,7 @@ export class ContactRepository implements IContactRepository {
     }
 
     async createManyContact(data: { 
+        organizationId: string;
         name?: string; 
         email?: string; 
         phone?: string; 
@@ -98,55 +104,60 @@ export class ContactRepository implements IContactRepository {
         return result.count;
     }
 
-    async softDeleteContact(id: string): Promise<void> {
+    async softDeleteContact(organizationId: string,id: string): Promise<void> {
         await prisma.contact.update({
             where: {
-                id
+                id,
+                organizationId
             },
             data: {
                 isDeleted: true,
             }
         })
     }
-    async restoreContact(id: string): Promise<void> {
+    async restoreContact(organizationId: string, id: string): Promise<void> {
         await prisma.contact.update({
-            where: { id },
+            where: { id, organizationId },
             data: { isDeleted: false }
         })
     }
 
-    async findById(id: string): Promise<Contact | null> {
+    async findById(organizationId: string, id: string): Promise<Contact | null> {
         return prisma.contact.findFirst({
             where: { 
                 id,
+                organizationId,
                 isDeleted: false,
              }
         });
     }
 
-    async findByEmail(email: string): Promise<Contact | null> {
+    async findByEmail(organizationId:string, email: string): Promise<Contact | null> {
         return prisma.contact.findFirst({
             where: { 
+                organizationId,
                 email, 
                 isDeleted: false,
             }
         });
     }
 
-    async findByPhone(phone: string): Promise<Contact | null> {
+    async findByPhone(organizationId:string, phone: string): Promise<Contact | null> {
         return prisma.contact.findFirst({
             where: { 
+                organizationId,
                 phone,
                 isDeleted: false,
             }
         });
     }
 
-    async findContactByEmailOrPhone(email?: string, phone?: string): Promise<Contact | null> {
+    async findContactByEmailOrPhone(organizationId: string, email?: string, phone?: string): Promise<Contact | null> {
         if (!email && !phone) return null;
 
         return prisma.contact.findFirst({
             where: {
+                organizationId,
                 OR: [
                     ...(email ? [{ email }] : []),
                     ...(phone ? [{ phone }] : [])
@@ -156,9 +167,9 @@ export class ContactRepository implements IContactRepository {
         });
     }
 
-    async findByIdWithRelations(id: string): Promise<ContactWithRelations | null> {
+    async findByIdWithRelations(organizationId: string, id: string): Promise<ContactWithRelations | null> {
         return prisma.contact.findFirst({
-            where: { id, isDeleted: false },
+            where: { id, organizationId, isDeleted: false },
             include: {
                 tags: { include: { tag: true } },
                 contactEvents: { select: { eventId: true, source: true } },
@@ -174,27 +185,28 @@ export class ContactRepository implements IContactRepository {
         return rows.map((r) => r.eventId);
     }
 
-    async findByIdOrThrow(id: string): Promise<Contact> {
+    async findByIdOrThrow(organizationId: string, id: string): Promise<Contact> {
         return await prisma.contact.findUniqueOrThrow({
-            where: { id, isDeleted: false }
+            where: { id, organizationId, isDeleted: false }
         })
     }
 
-    async existsById(id: string): Promise<boolean> {
+    async existsById(organizationId: string, id: string): Promise<boolean> {
         const record = await prisma.contact.findUnique({
-            where: { id, isDeleted: false }
+            where: { id, organizationId, isDeleted: false }
         })
 
         return record !== null;
     }
 
-    async findByIdIncludingDeleted(id: string): Promise<Contact | null> {
+    async findByIdIncludingDeleted(organizationId: string, id: string): Promise<Contact | null> {
         return await prisma.contact.findUnique({
-            where: { id }
+            where: { id, organizationId }
         })
     }
 
     async listContacts(params: { 
+        organizationId: string;
         search?: string; 
         lastId?: string; 
         take?: number; 
@@ -204,6 +216,7 @@ export class ContactRepository implements IContactRepository {
 
         return await prisma.contact.findMany({
             where: {
+                organizationId: params.organizationId,
                 isDeleted: false,
                 ...(search && {
                     OR: [
@@ -230,9 +243,10 @@ export class ContactRepository implements IContactRepository {
         });
     }
 
-    async countContacts(search?: string): Promise<number> {
+    async countContacts(organizationId:string, search?: string): Promise<number> {
         return prisma.contact.count({
             where: {
+                organizationId,
                 isDeleted: false,
                 ...(search && {
                     OR: [

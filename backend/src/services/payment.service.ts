@@ -1,5 +1,5 @@
 import logger from "../config/logger";
-import { BadRequestError, NotFoundError } from "../errors/http-errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../errors/http-errors";
 import { RazorpayProvider } from "../providers/razorpay.provider";
 import { IEventRepository } from "../repositories/event.repo";
 import { IPaymentRepository } from "../repositories/payment.repo";
@@ -17,6 +17,7 @@ export type PaymentListResult = {
 export type PaymentDetailResult = {
     payment: {
         id: string;
+        organizationId: string;
         eventId: string;
         submissionId: string;
         amount: number;
@@ -106,6 +107,7 @@ export class PaymentService {
         })
         // Store payment in DB
         const createdPayment = await this.paymentRepo.create({
+            organizationId: event.organizationId,
             eventId: event.id,
             submissionId: params.submissionId,
             ...(submission.contactId && { contactId: submission.contactId }),
@@ -234,6 +236,7 @@ export class PaymentService {
 
                 if(payment.contactId) {
                     this.messageService.sendMessage({
+                        organizationId: payment.organizationId,
                         contactId: payment.contactId,
                         eventId: payment.eventId,
                         type: 'WHATSAPP',
@@ -336,9 +339,9 @@ export class PaymentService {
 
     }
 
-    async cancelPayment(paymentId: string): Promise<void> {
+    async cancelPayment(paymentId: string, organizationId?: string): Promise<void> {
 
-        const payment = await this.paymentRepo.findById(paymentId);
+        const payment = await this.paymentRepo.findById(paymentId, organizationId);
         if (!payment) {
             throw new NotFoundError("Payment not found");
         }
@@ -353,15 +356,16 @@ export class PaymentService {
         await this.paymentRepo.markCancelled(paymentId);
     }
 
-    async getPaymentById(paymentId: string): Promise<PaymentDetailResult> {
+    async getPaymentById(paymentId: string, organizationId?: string): Promise<PaymentDetailResult> {
 
-        const payment = await this.paymentRepo.findById(paymentId);
+        const payment = await this.paymentRepo.findById(paymentId, organizationId);
         if (!payment) {
             throw new NotFoundError("Payment record not found");
         }
 
         return {
             payment: {
+                organizationId: payment.organizationId,
                 id: payment.id,
                 eventId: payment.eventId,
                 submissionId: payment.submissionId,
@@ -381,6 +385,7 @@ export class PaymentService {
     }
 
     async getPaymentsByEvent(params: {
+        organizationId: string;
         eventId: string;
         limit: number;
         cursor?: string;
@@ -388,12 +393,15 @@ export class PaymentService {
     }): Promise<PaymentListResult> {
 
         const event = await this.eventRepo.findById(params.eventId);
-
-        if (!event) {
-            throw new NotFoundError("Event not found");
+        if (!event) throw new NotFoundError("Event not found");
+         
+        if(event.organizationId !== params.organizationId) {
+            throw new ForbiddenError("UnAuthorized");
         }
+
         const limit = Math.min(params.limit ?? 50, 100);
         const payments = await this.paymentRepo.findByEventIdPaginated({
+            organizationId: params.organizationId,
             eventId: params.eventId,
             limit,
             ...(params.cursor && { cursor: params.cursor }),
@@ -404,6 +412,7 @@ export class PaymentService {
     }
 
     async getAllPayments(params: {
+        organizationId: string;
         eventId?: string,
         contactId?: string,
         razorpayPaymentId?: string,
@@ -415,6 +424,7 @@ export class PaymentService {
         const limit = Math.min(params.limit ?? 50, 100);
         
         const payments = await this.paymentRepo.allPayments({
+            organizationId: params.organizationId,
             ...(params.eventId && { eventId: params.eventId }),
             ...(params.contactId && { contactId: params.contactId }),
             ...(params.razorpayPaymentId && { razorpayPaymentId: params.razorpayPaymentId }),

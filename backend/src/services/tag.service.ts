@@ -9,41 +9,42 @@ export class TagService {
         private contactRepo: IContactRepository
     ) { }
 
-    async createTag(name: string) {
+    async createTag(organizationId: string, name: string) {
         if(!name.trim()) {
             throw new BadRequestError("Tag name is required");
         }
-        return this.tagRepo.createTag(name.trim());
+        return this.tagRepo.createTag(organizationId, name.trim());
     }
-    async listTags() {
-        return this.tagRepo.listTags();
+    
+    async listTags(organizationId: string) {
+        return this.tagRepo.listTags(organizationId);
     }
 
-    async findTagById(tagId: string) {
-        const tag = await this.tagRepo.findTagById(tagId);
+    async findTagById(organizationId: string, tagId: string) {
+        const tag = await this.tagRepo.findTagById(organizationId, tagId);
         if(!tag) {
             throw new NotFoundError("Tag not found");
         }
         return tag;
     }
 
-    async addTagToContact(contactId: string, tagId: string) {
+    async addTagToContact(organizationId: string, contactId: string, tagId: string) {
         
-        const contact = await this.contactRepo.findById(contactId);
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if(!contact) {
             throw new NotFoundError("Contact not found");
         }
 
-        const tag = await this.tagRepo.findTagById(tagId);
-            if(!tag) {
-                throw new BadRequestError("Tag not found");
-            }
+        const tag = await this.tagRepo.findTagById(organizationId, tagId);
+        if(!tag) {
+            throw new BadRequestError("Tag not found");
+        }
 
         await this.tagRepo.addTagToContact(contactId, tagId);
     }
 
-    async removeTagFromContact(contactId: string, tagId: string) {
-        const contact = await this.contactRepo.findById(contactId);
+    async removeTagFromContact(organizationId: string, contactId: string, tagId: string) {
+        const contact = await this.contactRepo.findById(organizationId, contactId);
         if (!contact) {
             throw new NotFoundError("Contact not found");
         }
@@ -58,11 +59,11 @@ export class TagService {
         }
     }
 
-    async bulkAddTagToContacts(tagId: string, contactIds: string[]) {
+    async bulkAddTagToContacts(organizationId: string, tagId: string, contactIds: string[]) {
 
         if(!contactIds.length) throw new BadRequestError("No contacts provided");
 
-        const tag = await this.tagRepo.findTagById(tagId);
+        const tag = await this.tagRepo.findTagById(organizationId, tagId);
         if(!tag) {
             throw new NotFoundError("Tag not found");
         }
@@ -72,7 +73,11 @@ export class TagService {
         )
     }
 
-    async getContactIdsByTag(tagId: string) {
+    async getContactIdsByTag(organizationId: string, tagId: string) {
+        const tag = await this.tagRepo.findTagById(organizationId, tagId);
+        if(!tag) {
+            throw new NotFoundError("Tag not found");
+        }
         return this.tagRepo.findContactIdsByTag(tagId);
     }
 

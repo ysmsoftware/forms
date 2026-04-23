@@ -83,6 +83,7 @@ export class DailyAnalyticsWorker {
                             conversionRate,
                         },
                         create: {
+                            organizationId: analytics.organizationId,
                             eventId: analytics.eventId,
                             date: yesterday,
                             visits: Math.max(0, dailyVisits),

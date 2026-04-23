@@ -22,6 +22,7 @@ export interface PaymentConfig {
 
 export interface Event {
     id: string;
+    organizationId: string;
     title: string;
     slug: string;
     description?: string;

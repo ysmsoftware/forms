@@ -2,6 +2,7 @@ import { Router } from "express";
 import { multerMemoryUpload } from "../middlewares/multer.middleware";
 import { validateFile } from "../middlewares/file-validate.middleware";
 import { compressImage } from "../middlewares/image-compress.middleware";
+import { authenticatedOrgMiddleware } from "../middlewares/authenticated-org.middleware";
 import { fileController } from "../container";
 
 
@@ -18,15 +19,15 @@ router.post(
 );
 
 // get files by contact
-router.get("/contact/:contactId", fileController.getByContactId);
+router.get("/contact/:contactId", authenticatedOrgMiddleware, fileController.getByContactId);
 
 // get files by event
-router.get("/event/:eventId", fileController.getByEventId);
+router.get("/event/:eventId", authenticatedOrgMiddleware, fileController.getByEventId);
 
 // get by file ID
-router.get("/:id", fileController.getById);
+router.get("/:id", authenticatedOrgMiddleware, fileController.getById);
 
 // delete file
-router.delete("/:id", fileController.deleteById);
+router.delete("/:id", authenticatedOrgMiddleware, fileController.deleteById);
 
 export default router;

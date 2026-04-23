@@ -55,6 +55,7 @@ export interface ISubmissionRepository {
     ): Promise<VisitSession>;
 
     createFullSubmission(data: {
+        organizationId: string;
         formId: string;
         eventId: string;
         visitorId: string;
@@ -154,12 +155,13 @@ export class SubmissionsRepository implements ISubmissionRepository {
         });
     }
 
-    async createFullSubmission(data: { formId: string; eventId: string; visitorId: string; contactId?: string; status: SubmissionStatus; answers: { fieldId: string; fieldKey: string; valueText?: string; valueNumber?: number; valueBoolean?: boolean; valueDate?: Date; valueJson?: any; fileUrl?: string; }[]; }): Promise<SubmissionWithAnswers> {
+    async createFullSubmission(data: { organizationId: string; formId: string; eventId: string; visitorId: string; contactId?: string; status: SubmissionStatus; answers: { fieldId: string; fieldKey: string; valueText?: string; valueNumber?: number; valueBoolean?: boolean; valueDate?: Date; valueJson?: any; fileUrl?: string; }[]; }): Promise<SubmissionWithAnswers> {
 
         return prisma.$transaction(async (tx) => {
 
             const submission = await tx.formSubmission.create({
                 data: {
+                    organizationId: data.organizationId,
                     formId: data.formId,
                     eventId: data.eventId,
                     visitorId: data.visitorId,

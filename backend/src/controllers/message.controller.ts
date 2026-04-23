@@ -8,6 +8,7 @@ export class MessageController {
 
     send = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, eventId, type, template, params } = req.body;
 
             if (!contactId || !type || !template) {
@@ -15,6 +16,7 @@ export class MessageController {
             }
 
             const result = await this.messageService.sendMessage({
+                organizationId,
                 contactId,
                 eventId,
                 type,
@@ -35,6 +37,7 @@ export class MessageController {
 
     resolveParams = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const { contactId, eventId, template } = req.body
 
             if (!contactId || !template) {
@@ -42,6 +45,7 @@ export class MessageController {
             }
 
             const result = await this.messageService.resolveParams({
+                organizationId,
                 contactId,
                 eventId,
                 template,
@@ -55,6 +59,9 @@ export class MessageController {
 
     getMessages = async (req: Request, res: Response, next: NextFunction) => {
         try {
+
+            const { organizationId } = req.user!;
+
             const contactId = req.query.contactId as string;
             const eventId = req.query.eventId as string;
             const email = req.query.email as string;
@@ -63,7 +70,7 @@ export class MessageController {
             const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 
             const result = await this.messageService.getMessages(
-                contactId, eventId, email, phone, limit, offset
+                organizationId, contactId, eventId, email, phone, limit, offset
             );
 
             res.json({
@@ -82,7 +89,8 @@ export class MessageController {
 
     retryFailedMessages = async (req: Request, res: Response, next: NextFunction) => {
         try {
-             const failedMessages = await this.messageService.retryFailedMessages();
+            const { organizationId } = req.user!;
+             const failedMessages = await this.messageService.retryFailedMessages(organizationId);
 
             return res.status(200).json({ 
                 success: true, 

@@ -12,6 +12,7 @@ export interface FileUploadResult {
 export interface UploadFileInput {
     file: File
     context: "FORM_SUBMISSION" | "EVENT_ASSET" | "FORM_CERTIFICATE" | "USER_AVATAR"
+    organizationId?: string
     eventId?: string
     eventSlug?: string
     fieldKey?: string
@@ -25,6 +26,7 @@ function buildFormData(input: UploadFileInput): FormData {
     const fd = new FormData();
     fd.append("file", input.file);
     fd.append("context", input.context);
+    if (input.organizationId) fd.append("organizationId", input.organizationId);
     if (input.eventId) fd.append("eventId", input.eventId);
     if (input.eventSlug) fd.append("eventSlug", input.eventSlug);
     if (input.fieldKey) fd.append("fieldKey", input.fieldKey);

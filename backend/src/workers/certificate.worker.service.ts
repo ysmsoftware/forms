@@ -67,6 +67,7 @@ export class CertificateWorkerService {
             const isDirectIssue = !certificate.eventId;
 
             const uploaded = await this.fileService.upload({
+                ...(certificate.organizationId && { organizationId: certificate.organizationId }),
                 file: bufferToMulter(pdfBuffer, filename),
                 context: isDirectIssue
                     ? FileContext.DIRECT_CERTIFICATE

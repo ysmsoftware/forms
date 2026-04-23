@@ -8,6 +8,7 @@ interface PublicFileUploadFieldProps {
     field: FormField
     eventId: string
     eventSlug: string
+    organizationId?: string
     visitorId: string
     value: string
     onChange: (url: string) => void
@@ -20,6 +21,7 @@ export function PublicFileUploadField({
     field,
     eventId,
     eventSlug,
+    organizationId,
     visitorId,
     value,
     onChange,
@@ -63,6 +65,7 @@ export function PublicFileUploadField({
             const result = await uploadFilePublic({
                 file,
                 context: "FORM_SUBMISSION",
+                organizationId,
                 eventId,
                 eventSlug,
                 fieldKey: field.key,

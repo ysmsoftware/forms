@@ -18,6 +18,7 @@ export type MessageLogWithRelations = MessageLog & {
 export interface IMessageRepository {
 
     create(data: {
+        organizationId: string;
         contactId: string;
         eventId?: string;
         type: MessageType;
@@ -36,6 +37,7 @@ export interface IMessageRepository {
     findById(id: string): Promise<MessageLogWithRelations | null>;
 
     getMessages(params: {
+        organizationId: string;
         contactId?: string,
         eventId?: string,
         email?: string,
@@ -44,7 +46,7 @@ export interface IMessageRepository {
     }
     ): Promise<MessageLogWithRelations[]>
 
-    findFailedMessages(): Promise<MessageLog[] | null>
+    findFailedMessages(organizationId: string): Promise<MessageLog[] | null>
 
 }
 
@@ -52,6 +54,7 @@ export interface IMessageRepository {
 export class MessageRepository implements IMessageRepository {
 
     async create(data: {
+        organizationId: string;
         contactId: string;
         eventId?: string;
         type: MessageType;
@@ -68,6 +71,7 @@ export class MessageRepository implements IMessageRepository {
     }
 
     async updateStatus(
+
         id: string,
         status: MessageStatus,
         options?: {
@@ -118,6 +122,7 @@ export class MessageRepository implements IMessageRepository {
     }
 
     async getMessages(params: {
+        organizationId: string,
         contactId?: string,
         eventId?: string,
         email?: string,
@@ -135,6 +140,7 @@ export class MessageRepository implements IMessageRepository {
 
         return prisma.messageLog.findMany({
             where: {
+                organizationId: params.organizationId,
                 ...(params.contactId && { contactId: params.contactId }),
                 ...(params.eventId && { eventId: params.eventId }),
                 ...(params.email && { contact: { email: params.email } }),
@@ -163,10 +169,11 @@ export class MessageRepository implements IMessageRepository {
         });
     }
 
-    async findFailedMessages(): Promise<MessageLog[] | null> { 
+    async findFailedMessages(organizationId: string): Promise<MessageLog[] | null> { 
         return await prisma.messageLog.findMany({
             where: {
                 status: "FAILED",
+                organizationId,
                 AND: [
                     { attemptCount: { gte: 3 }, }                    
                 ]

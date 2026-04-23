@@ -174,12 +174,13 @@ export class SubmissionController {
 
     getSubmissionById = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const submissionId = req.params.id;
             if (!submissionId || Array.isArray(submissionId)) {
                 return res.status(400).json({ error: 'Valid id parameter is required' });
             }
 
-            const result = await this.submissionService.getSubmissionById(submissionId);
+            const result = await this.submissionService.getSubmissionById(submissionId, organizationId);
 
 
             return res.status(200).json({ success: true, data: result});
@@ -191,6 +192,7 @@ export class SubmissionController {
 
     getSubmissionByEvent = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { organizationId } = req.user!;
             const eventId = req.params.id;
             if (!eventId || Array.isArray(eventId)) {
                 return res.status(400).json({ error: 'Valid eventid parameter is required' });
@@ -213,7 +215,7 @@ export class SubmissionController {
                 ...(req.query.toDate && { toDate: new Date(req.query.toDate as string) })
             };
 
-            const result = await this.submissionService.getSubmissionsByEvent(eventId, filters); 
+            const result = await this.submissionService.getSubmissionsByEvent(eventId, organizationId,  filters); 
 
             return res.status(200).json(result);
             

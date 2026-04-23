@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { submissionController } from "../container";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authenticatedOrgMiddleware } from "../middlewares/authenticated-org.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import { startSubmission, submissionFilter, submissionForm, } from "../validators/submission.schema";
 import rateLimit from "express-rate-limit";
@@ -95,14 +95,14 @@ router.get(
 // Get submission by ID
 router.get(
     "/admin/submissions/:id",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     submissionController.getSubmissionById
 );
 
 // Get submissions by event
 router.get(
     "/admin/events/:id/submissions",
-    authMiddleware,
+    authenticatedOrgMiddleware,
     validate(submissionFilter),
     submissionController.getSubmissionByEvent
 );

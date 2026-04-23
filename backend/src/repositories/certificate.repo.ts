@@ -27,6 +27,7 @@ export type CertificateWithRelations = Certificate & {
 export interface ICertificateRepository {
 
     create(data: {
+        organizationId?: string;
         submissionId: string;
         contactId?: string;
         eventId?: string;
@@ -36,6 +37,7 @@ export interface ICertificateRepository {
     }): Promise<Certificate>;
 
     createDirect(data: {
+        organizationId: string;
         contactId: string;
         templateType: CertificateTemplateType;
         status: CertificateStatus;
@@ -43,6 +45,7 @@ export interface ICertificateRepository {
 
 
     findAll(filters: {
+        organizationId: string;
         eventId?: string;
         status?: CertificateStatus;
         templateType?: CertificateTemplateType;
@@ -57,7 +60,7 @@ export interface ICertificateRepository {
 
     findBySubmissionId(submissionId: string): Promise<Certificate | null>;
 
-    findByEventId(eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }>;
+    findByEventId(organizationId: string, eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }>;
 
     findByContactId(contactId: string, limit: number, cursor?: string): Promise<{ items: CertificateWithRelations[], total: number, nextCursor: string | null }>;
 
@@ -71,6 +74,7 @@ export interface ICertificateRepository {
 export class CertificateRepository implements ICertificateRepository {
 
     async create(data: { 
+        organizationId?: string;
         submissionId: string; 
         contactId?: string; 
         eventId?: string; 
@@ -78,19 +82,38 @@ export class CertificateRepository implements ICertificateRepository {
         fileAssetId?: string;
         templateType: CertificateTemplateType;
     }): Promise<Certificate> {
-        return await prisma.certificate.create({ data });
+        return await prisma.certificate.create({ 
+            data: {
+                ...(data.organizationId && { organizationId: data.organizationId }),
+                submissionId: data.submissionId,
+                ...(data.contactId && { contactId: data.contactId }),
+                ...(data.eventId && { eventId: data.eventId }),
+                status: data.status,
+                ...(data.fileAssetId && { fileAssetId: data.fileAssetId }),
+                templateType: data.templateType,
+            }
+        });
     }
 
     async createDirect(data: {
+        organizationId: string;
         contactId: string;
         templateType: CertificateTemplateType;
         status: CertificateStatus;
     }): Promise<Certificate> {
-        return await prisma.certificate.create({ data: data as any });
+        return await prisma.certificate.create({ 
+            data: {
+                organizationId: data.organizationId,
+                contactId: data.contactId,
+                templateType: data.templateType,
+                status: data.status,
+            }
+        });
     }
 
 
     async findAll(filters: {
+        organizationId: string;
         eventId?: string;
         status?: CertificateStatus;
         templateType?: CertificateTemplateType;
@@ -105,6 +128,7 @@ export class CertificateRepository implements ICertificateRepository {
         const skip  = (page - 1) * limit;
 
         const where: Prisma.CertificateWhereInput = {
+            organizationId: filters.organizationId,
             isDeleted: false,
             ...(filters.eventId      && { eventId:      filters.eventId }),
             ...(filters.status       && { status:       filters.status }),
@@ -153,20 +177,22 @@ export class CertificateRepository implements ICertificateRepository {
         });
     }
 
-    async findByEventId(eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }> {
+    async findByEventId(organizationId: string,eventId: string, page?: number, limit?: number): Promise<{ items: CertificateWithRelations[], total: number }> {
         const pageNum = page ?? 1;
         const limitNum = limit ?? 20;
         const skip = (pageNum - 1) * limitNum;
 
         const [items, total] = await Promise.all([
             prisma.certificate.findMany({
-                where: { eventId, isDeleted: false },
+                where: { 
+                    eventId, organizationId, isDeleted: false 
+                },
                 include: this.certInclude,
                 orderBy: { issuedAt: 'desc' },
                 skip,
                 take: limitNum,
             }),
-            prisma.certificate.count({ where: { eventId, isDeleted: false } }),
+            prisma.certificate.count({ where: { eventId, organizationId, isDeleted: false } }),
         ]);
 
         return { items, total };

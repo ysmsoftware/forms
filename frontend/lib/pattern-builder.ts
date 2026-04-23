@@ -72,7 +72,7 @@ export const PATTERN_OPTIONS: PatternOption[] = [
     {
         key: "phoneNumber",
         label: "Phone number format",
-        description: "10-digit Indian mobile number (e.g. 9876543210)",
+        description: "10-digit number (e.g. 9876543210)",
         group: "format",
     },
     {
@@ -103,38 +103,37 @@ export function buildPattern(state: PatternBuilderState): string | undefined {
         return "^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$"
     }
     if (opts.includes("phoneNumber")) {
-        return "^[6-9]\\d{9}$"
+        return "^\\d{10}$"
     }
 
     // Build character class
-    let charClass = " "
+    let charClass = ""
 
     if (opts.includes("numbersOnly")) {
         charClass = "0-9"
     } else if (opts.includes("lettersOnly")) {
-        if (opts.includes("uppercaseOnly")) charClass = "A-Z "
-        else if (opts.includes("lowercaseOnly")) charClass = "a-z "
-        else charClass = "A-Za-z "
+        if (opts.includes("uppercaseOnly")) charClass = "A-Z"
+        else if (opts.includes("lowercaseOnly")) charClass = "a-z"
+        else charClass = "A-Za-z"
+        // Add space by default for letters only, unless noSpaces is active
+        if (!opts.includes("noSpaces")) charClass += " "
     } else if (opts.includes("lettersAndNumbers")) {
         if (opts.includes("uppercaseOnly")) charClass = "A-Z0-9"
         else if (opts.includes("lowercaseOnly")) charClass = "a-z0-9"
         else charClass = "A-Za-z0-9"
+        // Add space by default for letters and numbers, unless noSpaces is active
+        if (!opts.includes("noSpaces")) charClass += " "
     } else if (opts.includes("noSpecialChars")) {
-        // Letters, numbers, and spaces — no symbols
-        charClass = "A-Za-z0-9 "
+        charClass = "A-Za-z0-9"
+        if (!opts.includes("noSpaces")) charClass += " "
     }
 
-    // If no char constraint selected but other modifiers present, use broad base
+    // Handle standalone noSpaces if no base class is selected
     if (!charClass && opts.includes("noSpaces")) {
         return "^\\S+$"
     }
 
     if (!charClass) return undefined
-
-    // Apply noSpaces — remove space from class if it was added
-    if (opts.includes("noSpaces") && charClass.includes(" ")) {
-        charClass = charClass.replace(" ", "")
-    }
 
     return `^[${charClass}]+$`
 }
@@ -148,10 +147,12 @@ export function parsePattern(pattern: string): PatternBuilderState {
     // Exact matches for known presets
     if (pattern === "^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$")
         return { selectedOptions: ["url"] }
-    if (pattern === "^[0-9]\\d{10}$")
+    if (pattern === "^\\d{10}$")
         return { selectedOptions: ["phoneNumber"] }
     if (pattern === "^\\S+$")
         return { selectedOptions: ["noSpaces"] }
+
+    // Letters Only
     if (pattern === "^[A-Za-z ]+$")
         return { selectedOptions: ["lettersOnly"] }
     if (pattern === "^[A-Za-z]+$")
@@ -164,16 +165,30 @@ export function parsePattern(pattern: string): PatternBuilderState {
         return { selectedOptions: ["lettersOnly", "lowercaseOnly"] }
     if (pattern === "^[a-z]+$")
         return { selectedOptions: ["lettersOnly", "lowercaseOnly", "noSpaces"] }
+
+    // Numbers Only
     if (pattern === "^[0-9]+$")
         return { selectedOptions: ["numbersOnly"] }
-    if (pattern === "^[A-Za-z0-9]+$")
+
+    // Letters and Numbers
+    if (pattern === "^[A-Za-z0-9 ]+$")
         return { selectedOptions: ["lettersAndNumbers"] }
-    if (pattern === "^[A-Z0-9]+$")
+    if (pattern === "^[A-Za-z0-9]+$")
+        return { selectedOptions: ["lettersAndNumbers", "noSpaces"] }
+    if (pattern === "^[A-Z0-9 ]+$")
         return { selectedOptions: ["lettersAndNumbers", "uppercaseOnly"] }
-    if (pattern === "^[a-z0-9]+$")
+    if (pattern === "^[A-Z0-9]+$")
+        return { selectedOptions: ["lettersAndNumbers", "uppercaseOnly", "noSpaces"] }
+    if (pattern === "^[a-z0-9 ]+$")
         return { selectedOptions: ["lettersAndNumbers", "lowercaseOnly"] }
+    if (pattern === "^[a-z0-9]+$")
+        return { selectedOptions: ["lettersAndNumbers", "lowercaseOnly", "noSpaces"] }
+
+    // No Special Chars
     if (pattern === "^[A-Za-z0-9 ]+$")
         return { selectedOptions: ["noSpecialChars"] }
+    if (pattern === "^[A-Za-z0-9]+$")
+        return { selectedOptions: ["noSpecialChars", "noSpaces"] }
 
     // Unknown pattern — treat as custom (not used in current UI but future-proof)
     return { selectedOptions: [] }

@@ -1,23 +1,23 @@
 import { Router } from "express";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authenticatedOrgMiddleware } from "../middlewares/authenticated-org.middleware";
 import { contactController } from "../container";
 
 
 const router = Router();
 
-router.get("/", authMiddleware, contactController.list);
-router.post("/", authMiddleware, contactController.create);
+router.get("/", authenticatedOrgMiddleware, contactController.list);
+router.post("/", authenticatedOrgMiddleware, contactController.create);
 
-router.get("/:id/events", authMiddleware, contactController.getEvents);
-router.get("/:id/certificates", authMiddleware, contactController.getCertificates);
-router.get("/:id/payments", authMiddleware, contactController.getPayments);
-router.get("/:id/messages", authMiddleware, contactController.getMessages);
-router.get("/:id/tags", authMiddleware, contactController.getTags);
-router.get("/:id/files", authMiddleware, contactController.getFiles)
-router.patch("/:id/restore", authMiddleware, contactController.restore);
+router.get("/:id/events", authenticatedOrgMiddleware, contactController.getEvents);
+router.get("/:id/certificates", authenticatedOrgMiddleware, contactController.getCertificates);
+router.get("/:id/payments", authenticatedOrgMiddleware, contactController.getPayments);
+router.get("/:id/messages", authenticatedOrgMiddleware, contactController.getMessages);
+router.get("/:id/tags", authenticatedOrgMiddleware, contactController.getTags);
+router.get("/:id/files", authenticatedOrgMiddleware, contactController.getFiles)
+router.patch("/:id/restore", authenticatedOrgMiddleware, contactController.restore);
 
-router.get("/:id", authMiddleware, contactController.getById);
-router.put("/:id", authMiddleware, contactController.update);
-router.delete("/:id", authMiddleware, contactController.delete);
+router.get("/:id", authenticatedOrgMiddleware, contactController.getById);
+router.put("/:id", authenticatedOrgMiddleware, contactController.update);
+router.delete("/:id", authenticatedOrgMiddleware, contactController.delete);
 
 export default router;

@@ -22,6 +22,7 @@ export class ContactService {
     ) { }
 
     async createContact(input: {
+        organizationId: string;
         name?: string;
         email?: string;
         phone?: string; 
@@ -30,7 +31,7 @@ export class ContactService {
             throw new BadRequestError("Email or phone is required");
         }
 
-        const existing = await this.contactRepo.findContactByEmailOrPhone(input.email, input.phone);
+        const existing = await this.contactRepo.findContactByEmailOrPhone(input.organizationId, input.email, input.phone);
         if (existing) {
             const field = existing.email === input.email ? `email (${input.email})` : `phone (${input.phone})`;
             throw new ConflictError(`A contact with this ${field} already exists`);
@@ -40,6 +41,7 @@ export class ContactService {
     }
 
     async updateContact(
+        organizationId: string,
         id: string,
         input: {
             name?: string;
@@ -47,15 +49,16 @@ export class ContactService {
             phone?: string;
         }
     ) {
-        const existing = await this.contactRepo.findById(id);
+        const existing = await this.contactRepo.findById(id, organizationId);
         if(!existing) {
             throw  new NotFoundError("Contact not found");
         }
 
-        return this.contactRepo.updateContact({ id, ...input });
+        return this.contactRepo.updateContact({ id, organizationId, ...input });
     }
 
     async bulkCreateContacts(data: {
+        organizationId: string;
         name?: string;
         email?: string;
         phone?: string; 
@@ -68,24 +71,25 @@ export class ContactService {
         return this.contactRepo.createManyContact(data);
     }
 
-    async deleteContact(id: string) {
-        const contact = await this.contactRepo.findById(id);
+    async deleteContact(id: string, organizationId: string) {
+        const contact = await this.contactRepo.findById(id, organizationId);
         if(!contact) {
             throw new  NotFoundError("Contact not found")
         }
 
-        await this.contactRepo.softDeleteContact(id);
+        await this.contactRepo.softDeleteContact(organizationId, id);
     }
 
-    async restoreContact(id: string) {
-        const contact = await this.contactRepo.findByIdIncludingDeleted(id);
+    async restoreContact(id: string, organizationId: string) {
+        const contact = await this.contactRepo.findByIdIncludingDeleted(id, organizationId);
         if(!contact) {
             throw new NotFoundError("Contact not found");
         }
-        await this.contactRepo.restoreContact(id);
+        await this.contactRepo.restoreContact(id, organizationId);
     }
 
     async listContacts(params: {
+        organizationId: string;
         search?: string;
         lastId?: string;
         take?: number;
@@ -93,23 +97,23 @@ export class ContactService {
 
         const [contacts, total] = await Promise.all([
             this.contactRepo.listContacts(params),
-            this.contactRepo.countContacts(params.search),
+            this.contactRepo.countContacts(params.organizationId, params.search),
         ]);
 
         return { total, contacts };
     }
 
-    async getContactById(id: string) {
-        const contact = await this.contactRepo.findByIdWithRelations(id);
+    async getContactById(id: string, organizationId: string) {
+        const contact = await this.contactRepo.findByIdWithRelations(id, organizationId);
         if (!contact) {
             throw new NotFoundError("Contact not found");
         }
         return contact;
     }
 
-    async getContactEventIds(contactId:string) {
+    async getContactEventIds(contactId:string, organizationId: string) {
         
-        const contact = await this.contactRepo.findById(contactId);
+        const contact = await this.contactRepo.findById(contactId, organizationId);
         if(!contact) {
              throw new NotFoundError("Contact not found");
         }
@@ -117,9 +121,9 @@ export class ContactService {
         return this.contactRepo.findEventIdsByContactId(contactId);
     }
     
-    async getContactEvents(id: string) {
+    async getContactEvents(id: string, organizationId: string) {
 
-        await this.contactRepo.findByIdOrThrow(id);
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
         
         const events = await this.eventRepo.findByContactId(id);
         return { 
@@ -128,9 +132,9 @@ export class ContactService {
         }
     }
 
-    async getContactCertificates(id: string, params?: { limit?: number; cursor?: string }) {
+    async getContactCertificates(id: string, organizationId: string, params?: { limit?: number; cursor?: string }) {
         
-        await this.contactRepo.findByIdOrThrow(id);
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
     
         const { items, total, nextCursor } = await this.certificateRepo.findByContactId(
             id, 
@@ -146,10 +150,11 @@ export class ContactService {
         
     }
 
-    async getContactPayments(id: string, params?: { limit?: number; cursor?: string; status?: string }) {
-        await this.contactRepo.findByIdOrThrow(id);
+    async getContactPayments(id: string, organizationId: string, params?: { limit?: number; cursor?: string; status?: string }) {
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
         
         const payments = await this.paymentRepo.allPayments({ 
+            organizationId,
             contactId: id, 
             limit: params?.limit ?? 20,
             ...(params?.status && { status: params.status as PaymentStatus }),
@@ -163,10 +168,11 @@ export class ContactService {
 
     }
 
-    async getContactMessages(id: string, options: { limit?: number; offset?: number; }) { 
-        await this.contactRepo.findByIdOrThrow(id);
+    async getContactMessages(id: string, organizationId: string, options: { limit?: number; offset?: number; }) { 
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
 
         const messages = await this.messageRepo.getMessages({ 
+            organizationId,
             contactId: id,
             options,
         })
@@ -177,8 +183,8 @@ export class ContactService {
         }
     }
 
-    async getContactTags(id: string) {
-        await this.contactRepo.findByIdOrThrow(id);
+    async getContactTags(id: string, organizationId: string) {
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
 
         const tags = await this.tagRepo.findTagsByContactIds(id);
         
@@ -188,11 +194,11 @@ export class ContactService {
         };
     }
 
-    async getContactFiles(id: string) {
+    async getContactFiles(id: string, organizationId: string) {
 
-        await this.contactRepo.findByIdOrThrow(id);
+        await this.contactRepo.findByIdOrThrow(id, organizationId);
 
-        const files = await this.fileRepo.findByContactId(id);
+        const files = await this.fileRepo.findByContactId(id, organizationId);
 
         return {
             files,

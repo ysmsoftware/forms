@@ -2,7 +2,7 @@ import logger from "../config/logger";
 import { redis } from "../config/redis";
 import { PublicFormResponseDTO } from "../dtos/submissions/publicForm-response.dto";
 import { AdminSubmissionListResponseDTO, AdminSubmissionResponseDTO, SubmissionListItemDTO, SubmissionResponseDTO } from "../dtos/submissions/submission-response.dto";
-import { BadRequestError, NotFoundError } from "../errors/http-errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../errors/http-errors";
 import { toPublicFormResponseDTO } from "../mappers/publicForm.mapper";
 import { IEventRepository } from "../repositories/event.repo";
 import { IFormRepository } from "../repositories/form.repo";
@@ -207,7 +207,7 @@ export class SubmissionService {
         const [dbVisitor, existingContact] = await Promise.all([
             this.submissionRepo.upsertVisitor(visitor),
             (contact?.email || contact?.phone)
-                ? this.contactRepo.findContactByEmailOrPhone(contact.email, contact.phone)
+                ? this.contactRepo.findContactByEmailOrPhone(event.organizationId, contact.email, contact.phone)
                 : Promise.resolve(null),
         ]);
 
@@ -219,6 +219,7 @@ export class SubmissionService {
                 contactId = existingContact.id;
             } else {
                 const created = await this.contactRepo.createContact({
+                    organizationId: event.organizationId,
                     ...(contact.name && { name: contact.name }),
                     ...(contact.email && { email: contact.email }),
                     ...(contact.phone && { phone: contact.phone }),
@@ -245,6 +246,7 @@ export class SubmissionService {
 
         // - Create full submission
         const submission = await this.submissionRepo.createFullSubmission({
+            organizationId: event.organizationId,
             formId: form.id,
             eventId: event.id,
             visitorId: dbVisitor.id,
@@ -284,11 +286,10 @@ export class SubmissionService {
     /**
     * Admin: GET /api/admin/submissions/:id
     */
-    async getSubmissionById(id: string): Promise<AdminSubmissionResponseDTO> {
+    async getSubmissionById(id: string, organizationId: string): Promise<AdminSubmissionResponseDTO> {
         const submission = await this.submissionRepo.findSubmissionById(id);
-        if (!submission) {
-            throw new NotFoundError("Submission not found");
-        }
+        if (!submission) throw new NotFoundError("Submission not found");
+        if(submission.organizationId !== organizationId) throw new ForbiddenError("Unauthorized");
 
         const response: AdminSubmissionResponseDTO = {
             id: submission.id,
@@ -339,6 +340,7 @@ export class SubmissionService {
    */
     async getSubmissionsByEvent(
         eventId: string,
+        organizationId: string,
         filters: {
             status: 'ALL' | 'VISITED' | 'STARTED' | 'SUBMITTED',
             limit: number,
@@ -346,6 +348,12 @@ export class SubmissionService {
             fromDate?: Date,
             toDate?: Date
         }): Promise<AdminSubmissionListResponseDTO> {
+
+
+        const event = await this.eventRepo.findById(eventId);
+        if(!event) throw new NotFoundError("Event not found");
+        if(event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized");
+
         const { items: submissions, totalCount } = await this.submissionRepo.findSubmissionsByEvent(
             eventId,
             {
