@@ -49,7 +49,7 @@ export class ContactService {
             phone?: string;
         }
     ) {
-        const existing = await this.contactRepo.findById(id, organizationId);
+        const existing = await this.contactRepo.findById( organizationId, id);
         if(!existing) {
             throw  new NotFoundError("Contact not found");
         }
@@ -123,7 +123,7 @@ export class ContactService {
     
     async getContactEvents(id: string, organizationId: string) {
 
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
         
         const events = await this.eventRepo.findByContactId(id);
         return { 
@@ -134,7 +134,7 @@ export class ContactService {
 
     async getContactCertificates(id: string, organizationId: string, params?: { limit?: number; cursor?: string }) {
         
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
     
         const { items, total, nextCursor } = await this.certificateRepo.findByContactId(
             id, 
@@ -151,7 +151,7 @@ export class ContactService {
     }
 
     async getContactPayments(id: string, organizationId: string, params?: { limit?: number; cursor?: string; status?: string }) {
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
         
         const payments = await this.paymentRepo.allPayments({ 
             organizationId,
@@ -169,7 +169,7 @@ export class ContactService {
     }
 
     async getContactMessages(id: string, organizationId: string, options: { limit?: number; offset?: number; }) { 
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
 
         const messages = await this.messageRepo.getMessages({ 
             organizationId,
@@ -184,7 +184,7 @@ export class ContactService {
     }
 
     async getContactTags(id: string, organizationId: string) {
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
 
         const tags = await this.tagRepo.findTagsByContactIds(id);
         
@@ -196,7 +196,7 @@ export class ContactService {
 
     async getContactFiles(id: string, organizationId: string) {
 
-        await this.contactRepo.findByIdOrThrow(id, organizationId);
+        await this.contactRepo.findByIdOrThrow(organizationId, id);
 
         const files = await this.fileRepo.findByContactId(id, organizationId);
 
