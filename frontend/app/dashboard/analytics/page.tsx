@@ -1,21 +1,23 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import dynamic from "next/dynamic"
+import nextDynamic from "next/dynamic"
 
-const SubmissionsChart = dynamic(
+const SubmissionsChart = nextDynamic(
     () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.SubmissionsChart),
     { ssr: false }
 )
-const ConversionFunnelChart = dynamic(
+const ConversionFunnelChart = nextDynamic(
     () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.ConversionFunnelChart),
     { ssr: false }
 )
-const TopEventsChart = dynamic(
+const TopEventsChart = nextDynamic(
     () => import("@/components/analytics/AnalyticsCharts").then((mod) => mod.TopEventsChart),
     { ssr: false }
 )

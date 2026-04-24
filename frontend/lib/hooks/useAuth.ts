@@ -1,46 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { login, logout, signup } from "@/lib/api/auth";
 import { useMe } from "../query/hooks/useUser";
 
+/**
+ * Auth hook — provides user state and auth actions.
+ *
+ * DESIGN:
+ * - `useMe()` (React Query) fetches `/auth/me` to get the current user.
+ * - If the user is not logged in, the query will fail with 401 → `client.ts`
+ *   will try one refresh → if that fails, `forceLogout()` redirects to /login.
+ * - This hook does NOT redirect on its own. Redirection is handled by:
+ *   1. `AuthGuard` (for protected routes like /dashboard)
+ *   2. `client.ts` `forceLogout()` (for expired sessions)
+ *
+ * On public pages (login, signup), `useMe()` will still fire but:
+ * - `retry: false` in useMe prevents retries
+ * - `client.ts` `forceLogout()` skips redirect if already on /login
+ */
 export function useAuth(callbackUrl?: string) {
-    const router = useRouter();
-
     const {
         data: user,
         isLoading,
-        isError,
-        error,
     } = useMe();
 
-    // 🔥 Prevent multiple redirects (important)
-    const hasRedirected = useRef(false);
-
-    /**
-     * 🚨 Handle unauthorized state (STOP LOOP HERE)
-     */
-    useEffect(() => {
-        if (isLoading) return;
-
-        if (isError && !hasRedirected.current) {
-            hasRedirected.current = true;
-
-            // Optional: only redirect on 401-type errors
-            if (typeof window !== "undefined") {
-                window.location.href = "/login";
-            }
-        }
-    }, [isLoading, isError]);
-
-    /**
-     * 🔐 Login
-     */
     const handleLogin = useCallback(
         async (email: string, password: string): Promise<void> => {
             const res = await login({ email, password });
-
             if (res?.user) {
                 window.location.href = callbackUrl ?? "/dashboard";
             }
@@ -48,26 +35,18 @@ export function useAuth(callbackUrl?: string) {
         [callbackUrl]
     );
 
-    /**
-     * 🚪 Logout
-     */
     const handleLogout = useCallback(async (): Promise<void> => {
         try {
             await logout();
         } catch {
             // ignore
         }
-
         window.location.href = "/login";
     }, []);
 
-    /**
-     * 🆕 Signup
-     */
     const handleSignup = useCallback(
         async (name: string, email: string, password: string): Promise<void> => {
             const res = await signup({ name, email, password });
-
             if (res?.user) {
                 window.location.href = "/dashboard";
             } else {

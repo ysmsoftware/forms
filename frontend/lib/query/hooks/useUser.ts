@@ -6,8 +6,9 @@ export function useMe() {
     return useQuery({
         queryKey: queryKeys.user.me,
         queryFn: getMe,
-        staleTime: 1000 * 60 * 10, // user profile barely changes — cache 10 min
-        retry: false, // if request fails (e.g. invalid token), don't retry automatically
+        staleTime: 1000 * 60 * 10,
+        retry: false,               // 401 = session dead → don't retry
+        refetchOnWindowFocus: false, // no background refetches that re-trigger 401s
     })
 }
 
