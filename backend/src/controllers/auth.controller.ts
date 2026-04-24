@@ -9,7 +9,7 @@ const IS_PROD = process.env.NODE_ENV === "production";
 const ACCESS_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? ("strict" as const) : ("lax" as const),
+    sameSite: "lax" as const,
     maxAge: 30 * 60 * 1000,     // 30 min TTL
     path: "/",
 }
@@ -17,15 +17,15 @@ const ACCESS_COOKIE_OPTIONS = {
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? ("strict" as const) : ("lax" as const),
+    sameSite: "lax" as const,
     maxAge: 7 * 24 * 60 * 60 * 1000,     // 7 days TTL
-    path: "/",
+    path: "/api/auth/refresh",
 }
 
 
 function clearAuthCookies(res: Response) {
     res.clearCookie("accessToken", { path: "/" });
-    res.clearCookie("refreshToken", { path: "/" });
+    res.clearCookie("refreshToken", { path: "/api/auth/refresh" });
 }
 
 export class AuthController {
