@@ -74,6 +74,7 @@ export async function publicClient<T>(
 ): Promise<T> {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
         ...options,
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
             ...options.headers,
