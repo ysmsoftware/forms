@@ -20,7 +20,7 @@ export interface UploadFileInput {
     contactId?: string
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 function buildFormData(input: UploadFileInput): FormData {
     const fd = new FormData();

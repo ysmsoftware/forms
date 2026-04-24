@@ -1,5 +1,5 @@
 const BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api";
+    process.env.NEXT_PUBLIC_API_URL || "/api";
 
 interface RequestOptions extends Omit<RequestInit, "headers"> {
     headers?: Record<string, string>;
@@ -19,6 +19,7 @@ async function unwrap<T>(res: Response): Promise<T> {
 function forceLogout(): void {
     if (typeof window === "undefined") return;
     window.location.href = "/login";
+    
 }
 
 /** Attempt a silent token refresh. Returns new accessToken or null. */
@@ -38,6 +39,7 @@ async function tryRefresh(): Promise<boolean> {
 
         return true;
     } catch {
+        forceLogout();
         return false;
     }
 }
@@ -62,7 +64,7 @@ export async function apiClient<T>(
         if (newToken) {
             return apiClient<T>(endpoint, { ...options, _isRetry: true });
         }
-        return new Promise<T>(() => { })
+        throw new Error("Session expired");
     }
 
     return unwrap<T>(res);

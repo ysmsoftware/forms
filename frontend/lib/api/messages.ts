@@ -94,7 +94,7 @@ export async function getMessages(params?: GetMessagesParams): Promise<{ data: M
     if (params?.offset !== undefined) query.set("offset", String(params.offset));
     const qs = query.toString();
 
-    const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api";
+    const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
     const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
     const res = await fetch(`${BASE_URL}/messages${qs ? `?${qs}` : ""}`, {
