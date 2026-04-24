@@ -1,5 +1,5 @@
 const BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3005/api";
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api";
 
 interface RequestOptions extends Omit<RequestInit, "headers"> {
     headers?: Record<string, string>;

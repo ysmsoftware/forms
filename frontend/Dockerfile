@@ -12,6 +12,9 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+ARG CACHE_BUST
+ENV CACHE_BUST=$CACHE_BUST
+
 RUN npm run build
 
 # ─── Stage 2: Production image ────────────────────────────────────────────────

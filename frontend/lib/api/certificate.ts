@@ -104,7 +104,7 @@ export interface VerifyCertificateResult {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3005/api"
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api"
 
 function authHeaders(): Record<string, string> {
     const token =
