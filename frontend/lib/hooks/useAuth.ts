@@ -10,36 +10,19 @@ export function useAuth(callbackUrl?: string) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const isAuthenticated = !!user;
-
-    // Check existing token on mount
     useEffect(() => {
-        const token =
-            typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-
-        if (!token) {
-            setIsLoading(false);
-            return;
-        }
-
         getMe()
             .then((data) => setUser(data))
-            .catch(() => localStorage.removeItem("accessToken"))
+            .catch(() => setUser(null))
             .finally(() => setIsLoading(false));
     }, []);
 
     const handleLogin = useCallback(
         async (email: string, password: string): Promise<void> => {
             const res = await login({ email, password });
-            localStorage.setItem("accessToken", res.accessToken);
-            // Set cookie for middleware
-            document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Lax`;
 
-            if (res.refreshToken) {
-                localStorage.setItem("refreshToken", res.refreshToken);
-            }
             setUser(res.user);
-            // Hard redirect so middleware re-evaluates with the new cookie
+            
             window.location.href = callbackUrl ?? "/dashboard";
         },
         [callbackUrl]
@@ -51,25 +34,16 @@ export function useAuth(callbackUrl?: string) {
         } catch {
             // ignore errors
         }
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        // Remove cookie for middleware
-        document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-
+        
         setUser(null);
-        router.push("/");
+        router.push("/login");
     }, [router]);
 
     const handleSignup = useCallback(
         async (name: string, email: string, password: string): Promise<void> => {
             const res = await signup({ name, email, password });
             // signup returns tokens directly — store them before login redirect
-            if (res?.accessToken) {
-                localStorage.setItem("accessToken", res.accessToken);
-                // Set cookie for middleware
-                document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Lax`;
-
-                if (res?.refreshToken) localStorage.setItem("refreshToken", res.refreshToken);
+            if (res?.user) {
                 setUser(res.user);
                 window.location.href = "/dashboard";
             } else {
@@ -82,7 +56,7 @@ export function useAuth(callbackUrl?: string) {
     return {
         user,
         isLoading,
-        isAuthenticated,
+        isAuthenticated: !!user,
         login: handleLogin,
         logout: handleLogout,
         signup: handleSignup,

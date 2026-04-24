@@ -9,19 +9,20 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new UnauthorizedError("Unauthorized");
+    
+    let token: string | undefined = req.cookies?.accessToken;
+    
+    if(!token) {
+        const authHeader = req.headers.authorization;
+        if( authHeader?.startsWith("Bearer ")) {
+            token = authHeader.split(" ")[1];
+        }
     }
-
-    const token = authHeader.split(" ")[1];
+    
     if (!token) {
       throw new UnauthorizedError("Unauthorized");
     }
-
-    // JWT signature verification is sufficient for identity —
-    // the token is cryptographically signed and has a 30-minute TTL.
-    // No DB round trip needed on every request.
+    
     const payload = verifyToken(token);
 
     req.user = { id: payload.userId, organizationId: payload.organizationId };

@@ -6,32 +6,22 @@ export async function signup(data: {
     email: string;
     password: string;
 }): Promise<AuthLoginResponse> {
-    const res = await publicClient<AuthLoginResponse>("/auth/signup", {
+    return publicClient<AuthLoginResponse>("/auth/signup", {
         method: "POST",
         body: JSON.stringify(data),
     });
-    if (typeof window !== "undefined" && res.accessToken) {
-        localStorage.setItem("accessToken", res.accessToken);
-        if (res.refreshToken) localStorage.setItem("refreshToken", res.refreshToken);
-        document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Strict`;
-    }
-    return res;
+    
+    
 }
 
 export async function login(data: {
     email: string;
     password: string;
 }): Promise<AuthLoginResponse> {
-    const res = await publicClient<AuthLoginResponse>("/auth/login", {
+    return publicClient<AuthLoginResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify(data),
     });
-    if (typeof window !== "undefined") {
-        localStorage.setItem("accessToken", res.accessToken);
-        if (res.refreshToken) localStorage.setItem("refreshToken", res.refreshToken);
-        document.cookie = `accessToken=${res.accessToken}; path=/; SameSite=Strict`;
-    }
-    return res;
 }
 
 export async function getMe(): Promise<User> {
@@ -50,10 +40,5 @@ export async function updateMe(body: {
 }
 
 export async function logout(): Promise<void> {
-    if (typeof window !== "undefined") {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    }
     return apiClient("/auth/logout", { method: "POST" });
 }

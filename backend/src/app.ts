@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import express from 'express';
 import cors from "cors";
 import morgan from "morgan";
@@ -43,13 +44,13 @@ app.post(
 );
 
 
-
-
 // CORS
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     credentials: true,
 }));
+
+app.use(cookieParser());
 
 // HTTP request logging
 morgan.token('id', (req: any) => req.id);

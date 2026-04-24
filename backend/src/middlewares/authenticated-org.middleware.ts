@@ -9,12 +9,16 @@ export const authenticatedOrgMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new UnauthorizedError("Unauthorized");
+
+    let token: string | undefined = req.cookies?.accessToken;
+
+    if(!token) {
+        const authHeader = req.headers.authorization;
+        if(authHeader?.startsWith("Bearer ")) {
+            token = authHeader.split(" ")[1];
+        }
     }
 
-    const token = authHeader.split(" ")[1];
     if (!token) {
       throw new UnauthorizedError("Unauthorized");
     }
@@ -23,13 +27,10 @@ export const authenticatedOrgMiddleware = async (
 
     req.user = { id: payload.userId, organizationId: payload.organizationId };
 
-    const { organizationId } = req.user;
-    if (!organizationId) {
+    if (!req.user.organizationId) {
       throw new ForbiddenError("No active organization");
     }
-    // TODO: For production with multiple orgs, verify membership is still active in DB
-    // JWT can be stale if membership was revoked (TTL: 30min for internal tool, acceptable)
-
+    
     logger.debug(`User authenticated: ${payload.userId} org: ${payload.organizationId}`);
     next();
   } catch (error) {
