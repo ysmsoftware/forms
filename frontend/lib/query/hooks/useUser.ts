@@ -7,6 +7,7 @@ export function useMe() {
         queryKey: queryKeys.user.me,
         queryFn: getMe,
         staleTime: 1000 * 60 * 10, // user profile barely changes — cache 10 min
+        retry: false, // if request fails (e.g. invalid token), don't retry automatically
     })
 }
 
