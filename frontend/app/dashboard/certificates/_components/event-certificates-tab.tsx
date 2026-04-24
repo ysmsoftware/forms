@@ -221,7 +221,7 @@ export function EventCertificatesTab() {
                   <ChevronDown className="h-4 w-4 ml-2 shrink-0 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64">
+              <DropdownMenuContent className="w-64 max-h-60 overflow-y-auto">
                 {events.length === 0 ? (
                   <DropdownMenuItem disabled>No events found</DropdownMenuItem>
                 ) : (
