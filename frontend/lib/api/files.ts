@@ -88,3 +88,8 @@ export async function deleteFileAdmin(id: string): Promise<void> {
 export async function getFilesByEvent(eventId: string): Promise<FileUploadResult[]> {
     return apiClient<FileUploadResult[]>(`/files/event/${eventId}`);
 }
+
+
+
+
+
