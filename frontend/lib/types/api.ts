@@ -91,6 +91,9 @@ export interface SubmissionAnswer {
     valueDate?: string;
     fileUrl?: string;
     valueFile?: string;
+    fieldOrder?: number;
+    stepNumber?: number;
+    stepTitle?: string;
 }
 
 export interface Contact {

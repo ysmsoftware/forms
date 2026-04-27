@@ -297,16 +297,25 @@ export class SubmissionService {
             formId: submission.formId,
             status: submission.status,
             submittedAt: submission.submittedAt,
-            answers: submission.answers.map((a) => ({
-                fieldId: a.fieldId,
-                fieldKey: a.fieldKey,
-                ...(a.valueText !== null && { valueText: a.valueText }),
-                ...(a.valueNumber !== null && { valueNumber: a.valueNumber }),
-                ...(a.valueBoolean !== null && { valueBoolean: a.valueBoolean }),
-                ...(a.valueDate !== null && { valueDate: a.valueDate }),
-                ...(a.valueJson !== null && { valueJson: a.valueJson }),
-                ...(a.fileUrl !== null && { fileUrl: a.fileUrl }),
-            })),
+            answers: submission.answers.map((a) => {
+                const fieldOrder = a.field?.order
+                const stepNumber = a.field?.step?.stepNumber
+                const stepTitle = a.field?.step?.title
+
+                return {
+                    fieldId: a.fieldId,
+                    fieldKey: a.fieldKey,
+                    ...(a.valueText !== null && { valueText: a.valueText }),
+                    ...(a.valueNumber !== null && { valueNumber: a.valueNumber }),
+                    ...(a.valueBoolean !== null && { valueBoolean: a.valueBoolean }),
+                    ...(a.valueDate !== null && { valueDate: a.valueDate }),
+                    ...(a.valueJson !== null && { valueJson: a.valueJson }),
+                    ...(a.fileUrl !== null && { fileUrl: a.fileUrl }),
+                    ...(fieldOrder !== undefined && { fieldOrder }),
+                    ...(stepNumber !== undefined && { stepNumber }),
+                    ...(stepTitle !== undefined && { stepTitle }),
+                }
+            }),
         };
 
         if (submission.contact) {

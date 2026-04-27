@@ -10,7 +10,15 @@ import { prisma } from "../config/db";
 import { ContactEventSource } from "@prisma/client";
 
 export type SubmissionWithAnswers = FormSubmission & {
-    answers: SubmissionAnswer[];
+    answers: Array<SubmissionAnswer & {
+        field?: {
+            order: number;
+            step?: {
+                stepNumber: number;
+                title: string;
+            } | null;
+        } | null;
+    }>;
     contact: Contact | null;
     payment?: {
         id: string;
@@ -228,7 +236,25 @@ export class SubmissionsRepository implements ISubmissionRepository {
         return prisma.formSubmission.findFirst({
             where: { id: id },
             include: {
-                answers: { orderBy: { fieldKey: "asc" } },
+                answers: {
+                    orderBy: [
+                        { field: { step: { stepNumber: "asc" as const } } },
+                        { field: { order: "asc" as const } },
+                    ],
+                    include: {
+                        field: {
+                            select: {
+                                order: true,
+                                step: {
+                                    select: {
+                                        stepNumber: true,
+                                        title: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 contact: true,
                 payment: {
                     select: {

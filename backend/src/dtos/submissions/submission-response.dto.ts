@@ -63,6 +63,9 @@ export interface AdminSubmissionResponseDTO {
         valueDate?: Date;
         valueJson?: any;
         fileUrl?: string;
+        fieldOrder?: number;
+        stepNumber?: number;
+        stepTitle?: string;
     }>;
 }
 

@@ -102,6 +102,21 @@ export function SubmissionTable({
 
         const contactDetailsExist = selected.contact?.name || selected.contact?.email || selected.contact?.phone
 
+        const answerGroups = Object.values(
+            selected.answers.reduce((groups, answer) => {
+                const groupKey = answer.stepNumber ?? 0
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        stepNumber: answer.stepNumber ?? 0,
+                        stepTitle: answer.stepTitle,
+                        answers: [] as typeof selected.answers,
+                    }
+                }
+                groups[groupKey].answers.push(answer)
+                return groups
+            }, {} as Record<number, { stepNumber: number; stepTitle?: string; answers: typeof selected.answers }>)
+        ).sort((a, b) => a.stepNumber - b.stepNumber)
+
         return (
             <div className="space-y-6 mt-6">
                 {contactDetailsExist && (
@@ -188,70 +203,84 @@ export function SubmissionTable({
                         {(!selected.answers || selected.answers.length === 0) ? (
                             <div className="text-muted-foreground">No answers recorded</div>
                         ) : (
-                            selected.answers.map((answer, idx) => {
-                                const label = answer.fieldKey
-                                    .replace(/_/g, " ")
-                                    .replace(/\b\w/g, c => c.toUpperCase())
-
-                                // FILE answer — render a preview button
-                                if (answer.fileUrl) {
-                                    return (
-                                        <div key={answer.fieldId ?? idx} className="space-y-1">
-                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                                {label}
-                                            </div>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-8 text-xs gap-1.5"
-                                                onClick={() => setPreviewFile({
-                                                    url: answer.fileUrl!,
-                                                    name: answer.fileUrl!.split("/").pop()?.split("?")[0] || label
-                                                })}
-                                            >
-                                                <Paperclip className="h-3.5 w-3.5" />
-                                                View File
-                                            </Button>
-                                            {idx < selected.answers.length - 1 && (
-                                                <Separator className="mt-3 opacity-50" />
-                                            )}
+                            answerGroups.map((group, groupIndex) => (
+                                <div key={groupIndex} className="space-y-4">
+                                    {(group.stepTitle || group.stepNumber > 0) && (
+                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                            {group.stepTitle ?? `Page ${group.stepNumber}`}
                                         </div>
-                                    )
-                                }
+                                    )}
+                                    <div className="space-y-4">
+                                        {group.answers.map((answer, idx) => {
+                                            const label = answer.fieldKey
+                                                .replace(/_/g, " ")
+                                                .replace(/\b\w/g, c => c.toUpperCase())
 
-                                const displayValue =
-                                    answer.valueText ??
-                                    (answer.valueNumber !== undefined ? String(answer.valueNumber) : null) ??
-                                    (answer.valueBoolean !== undefined ? (answer.valueBoolean ? "Yes" : "No") : null) ??
-                                    (answer.valueJson !== undefined ? (
-                                        Array.isArray(answer.valueJson)
-                                            ? answer.valueJson.join(" | ")
-                                            : typeof answer.valueJson === "object"
-                                                ? JSON.stringify(answer.valueJson)
-                                                : String(answer.valueJson)
-                                    ) : null) ??
-                                    (answer.valueDate ? (() => {
-                                        try {
-                                            return format(new Date(answer.valueDate), "MMM dd, yyyy")
-                                        } catch {
-                                            return answer.valueDate
-                                        }
-                                    })()
-                                        : null) ??
-                                    "—"
+                                            // FILE answer — render a preview button
+                                            if (answer.fileUrl) {
+                                                return (
+                                                    <div key={answer.fieldId ?? idx} className="space-y-1">
+                                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                            {label}
+                                                        </div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 text-xs gap-1.5"
+                                                            onClick={() => setPreviewFile({
+                                                                url: answer.fileUrl!,
+                                                                name: answer.fileUrl!.split("/").pop()?.split("?")[0] || label
+                                                            })}
+                                                        >
+                                                            <Paperclip className="h-3.5 w-3.5" />
+                                                            View File
+                                                        </Button>
+                                                        {idx < group.answers.length - 1 && (
+                                                            <Separator className="mt-3 opacity-50" />
+                                                        )}
+                                                    </div>
+                                                )
+                                            }
 
-                                return (
-                                    <div key={answer.fieldId ?? idx} className="space-y-1">
-                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                            {label}
-                                        </div>
-                                        <div className="text-sm">{displayValue}</div>
-                                        {idx < selected.answers.length - 1 && (
-                                            <Separator className="mt-3 opacity-50" />
-                                        )}
+                                            const displayValue =
+                                                answer.valueText ??
+                                                (answer.valueNumber !== undefined ? String(answer.valueNumber) : null) ??
+                                                (answer.valueBoolean !== undefined ? (answer.valueBoolean ? "Yes" : "No") : null) ??
+                                                (answer.valueJson !== undefined ? (
+                                                    Array.isArray(answer.valueJson)
+                                                        ? answer.valueJson.join(" | ")
+                                                        : typeof answer.valueJson === "object"
+                                                            ? JSON.stringify(answer.valueJson)
+                                                            : String(answer.valueJson)
+                                                ) : null) ??
+                                                (answer.valueDate ? (() => {
+                                                    try {
+                                                        return format(new Date(answer.valueDate), "MMM dd, yyyy")
+                                                    } catch {
+                                                        return answer.valueDate
+                                                    }
+                                                })()
+                                                    : null) ??
+                                                "—"
+
+                                            return (
+                                                <div key={answer.fieldId ?? idx} className="space-y-1">
+                                                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                        {label}
+                                                    </div>
+                                                    <div className="text-sm">{displayValue}</div>
+                                                    {idx < group.answers.length - 1 && (
+                                                        <Separator className="mt-3 opacity-50" />
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
-                                )
-                            })
+                                    {groupIndex < answerGroups.length - 1 && (
+                                        <Separator className="opacity-50" />
+                                    )}
+                                </div>
+                            ))
                         )}
                     </CardContent>
                 </Card>
