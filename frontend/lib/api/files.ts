@@ -1,3 +1,5 @@
+import { apiClient } from "./client";
+
 export interface FileUploadResult {
     id: string
     url: string
@@ -60,24 +62,18 @@ export async function uploadFilePublic(input: UploadFileInput): Promise<FileUplo
 
 export async function uploadFileAdmin(input: UploadFileInput): Promise<FileUploadResult> {
     const fd = buildFormData(input);
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
+    // multipart/form-data — do NOT set Content-Type, browser sets it with boundary
+    // credentials:include sends the httpOnly accessToken cookie automatically
     const res = await fetch(`${BASE_URL}/files/upload`, {
         method: "POST",
-        headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: "include",
         body: fd,
     });
 
     if (!res.ok) {
         let msg = "Upload failed";
-        try {
-            const errBody = await res.json();
-            msg = errBody.message || msg;
-        } catch {
-            // ignore
-        }
+        try { const e = await res.json(); msg = e.message || msg; } catch { }
         throw new Error(msg);
     }
 
@@ -86,49 +82,9 @@ export async function uploadFileAdmin(input: UploadFileInput): Promise<FileUploa
 }
 
 export async function deleteFileAdmin(id: string): Promise<void> {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-
-    const res = await fetch(`${BASE_URL}/files/${id}`, {
-        method: "DELETE",
-        headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
-
-    if (!res.ok) {
-        let msg = "Delete failed";
-        try {
-            const errBody = await res.json();
-            msg = errBody.message || msg;
-        } catch {
-            // ignore
-        }
-        throw new Error(msg);
-    }
+    return apiClient(`/files/${id}`, { method: "DELETE" });
 }
 
 export async function getFilesByEvent(eventId: string): Promise<FileUploadResult[]> {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-
-    const res = await fetch(`${BASE_URL}/files/event/${eventId}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
-
-    if (!res.ok) {
-        let msg = "Failed to fetch files";
-        try {
-            const errBody = await res.json();
-            msg = errBody.message || msg;
-        } catch {
-            // ignore
-        }
-        throw new Error(msg);
-    }
-
-    const json = await res.json();
-    return json.data;
+    return apiClient<FileUploadResult[]>(`/files/event/${eventId}`);
 }

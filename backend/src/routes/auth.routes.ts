@@ -26,10 +26,29 @@ const authLimiter = rateLimit({
     },
 });
 
+const passwordResetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new RedisStore({
+        sendCommand: (...args: string[]) => {
+            const [command, ...rest] = args as [string, ...string[]];
+            return redis.call(command, ...rest) as Promise<any>;
+        },
+    }),
+    message: {
+        success: false,
+        message: "Too many password reset attempts. Please try again in 15 minutes.",
+    },
+});
+
 router.post("/signup",  authLimiter, validate(signupSchema), authController.signup);
 router.post("/login",   authLimiter, validate(loginSchema),  authController.login);
 router.post("/refresh",                                       authController.refresh);
 router.get("/me",       authMiddleware,                       authController.me);
 router.post("/logout",  authMiddleware,                       authController.logout);
+router.post("/forgot-password", passwordResetLimiter, authController.forgotPassword);
+router.post("/reset-password", passwordResetLimiter, authController.resetPassword);
 
 export default router;

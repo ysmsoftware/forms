@@ -126,6 +126,11 @@ function LoginForm() {
                         Sign up
                     </Link>
                 </p>
+                 <p className="text-center text-sm">
+                    <Link href="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+                        Forgot password?
+                    </Link>
+                </p>
             </div>
         </div>
     );

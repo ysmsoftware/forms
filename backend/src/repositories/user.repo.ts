@@ -23,6 +23,8 @@ export interface IUserRepository {
     findOrgMembership(userId: string): Promise<{ organizationId: string } | null>;
     findByEmail(email: string): Promise<User | null>;
     findById(id: string): Promise<User | null>;
+
+    updatePassword(userId: string,passwordHash:string): Promise<void>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -99,5 +101,12 @@ export class UserRepository implements IUserRepository {
         return prisma.user.findUnique({
             where: { id },
         });
+    }
+
+    async updatePassword(userId: string, passwordHash: string): Promise<void> {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash }
+        })
     }
 }

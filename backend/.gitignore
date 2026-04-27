@@ -15,6 +15,7 @@ src/generated/prisma/
 
 # Logs
 *.log
+logs/
 npm-debug.log*
 
 # OS files

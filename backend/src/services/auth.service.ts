@@ -8,6 +8,10 @@ import { toUserResponseDTO } from "../mappers/user.mapper";
 import { ConflictError, UnauthorizedError, NotFoundError } from "../errors/http-errors";
 import { UserResponseDTO } from "../dtos/user/user-response.dto";
 import { redis } from "../config/redis";
+import { sign, verify } from "jsonwebtoken";
+import { sendResetPasswordEmail } from "../providers/email.provider";
+import logger from "../config/logger";
+
 
 // Must match the expiresIn value in jwt.ts (7d in seconds)
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -75,10 +79,6 @@ export class AuthService {
         return { message: "Logged out successfully" };
     }
 
-    /**
-     * Validates the incoming refresh token against the one stored in Redis,
-     * then rotates both tokens (old refresh token is invalidated immediately).
-     */
     async refreshTokens(incomingToken: string): Promise<{ accessToken: string; refreshToken: string }> {
         let payload: { userId: string, organizationId: string };
         try {
@@ -100,4 +100,54 @@ export class AuthService {
 
         return { accessToken, refreshToken };
     }
+
+    async forgotPassword(email: string): Promise<void> {
+        const user = await this.userRepository.findByEmail(email);
+
+        // Silently return if user not found — prevents email enumeration attacks
+        // The frontend always shows the same "check your email" message regardless
+        if (!user) {
+            logger.warn(`[auth] Password reset requested for unknown email: ${email}`);
+            return;
+        }
+
+        const resetToken = sign(
+            { userId: user.id, purpose: "password-reset" },
+            process.env.JWT_RESET_SECRET!,
+            { expiresIn: "15m" }
+        )
+
+        await redis.set(`reset:${resetToken}`, user.id, "EX", 15*60 );
+
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        await sendResetPasswordEmail(user.email, user.name, resetLink);
+    }
+
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+
+        const userId = await redis.get(`reset:${token}`);
+        if(!userId) throw new UnauthorizedError("Reset link is invalid  or has expired");
+
+        let payload: any;
+        try {
+            payload = verify(token, process.env.JWT_RESET_SECRET!);
+        } catch  {
+            throw new UnauthorizedError("Reset link is invalid or has expired");
+        }
+
+        if(payload.purpose !== "password-reset" || payload.userId !== userId) {
+            throw new UnauthorizedError("Reset link in invalid");
+        }
+
+        const passwordHash = await hashPassword(newPassword);
+        await this.userRepository.updatePassword(userId, passwordHash)
+
+        // Single use
+        await redis.del(`reset:${token}`);
+
+        // invalidate any active session
+        await redis.del(refreshKey(userId));
+    }
+
 }

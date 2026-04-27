@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth.service";
 import logger from "../config/logger";
+import { success } from "zod";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -98,4 +99,49 @@ export class AuthController {
             next(error);
         }
     };
+
+    forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email } = req.body;
+            if(!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: "email is required"
+                });
+            }
+
+            await this.authService.forgotPassword(email);
+            res.status(200).json({ 
+                success: true, 
+                message: "If that email is registered, a reset link has been sent." 
+            });
+        } catch (error) {
+            next(error);
+            
+        }
+
+    }
+
+    resetPassword = async(req: Request, res: Response, next: NextFunction) => {
+        try{
+            const { token, newPassword } = req.body;
+            if(!token || !newPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: "token and newPassword are required",
+                });
+            }
+
+            await this.authService.resetPassword(token, newPassword);
+            clearAuthCookies(res);
+            res.status(200).json({
+                success: true,
+                message: "Password reset successfully. Please login"
+            });
+
+        } catch(error) {
+            next(error);
+        }
+    }
+
 }

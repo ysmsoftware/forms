@@ -83,6 +83,10 @@ export function SendMessageDialog({
     const [selectedContactLabel, setSelectedContactLabel] = useState("")
     const [selectedEventLabel, setSelectedEventLabel] = useState(defaultEventLabel || "")
     const [contactSearchOpen, setContactSearchOpen] = useState(false)
+    const [contactSearch, setContactSearch] = useState("")
+    // Store the full selected contact object so preview card never loses email/phone
+    // after contactSearch is cleared and allContacts reverts to the unfiltered page
+    const [selectedContact, setSelectedContact] = useState<{ id: string; name: string | null; email: string | null; phone: string | null } | null>(null)
     const [eventSearchOpen, setEventSearchOpen] = useState(false)
 
     // Bulk Sends State
@@ -117,7 +121,7 @@ export function SendMessageDialog({
 
     const sendMessage = useSendMessage()
     const { data: eventsData = [], isLoading: isLoadingEvents } = useEvents()
-    const { data: contactsData, isLoading: isLoadingContacts } = useContacts()
+    const { data: contactsData, isLoading: isLoadingContacts, fetchNextPage, hasNextPage } = useContacts(contactSearch)
 
     const allContacts = useMemo(() => {
         if (!contactsData) return []
@@ -212,6 +216,7 @@ export function SendMessageDialog({
             setOpen(val)
             if (!val) {
                 setContactId("")
+                setSelectedContact(null)
                 if (!defaultEventId) {
                     setEventId("")
                     setSelectedEventLabel("")
@@ -219,6 +224,7 @@ export function SendMessageDialog({
                 setSelectedContactLabel("")
                 setSelectedContacts(preSelectedContactIds ?? [])
                 setBulkSearch("")
+                setContactSearch("")
                 if (!defaultMode) setMode("single")
                 setBulkProgress(null)
                 setParamOverrides({})
@@ -414,44 +420,78 @@ export function SendMessageDialog({
                                 <h3 className="font-semibold text-sm mb-3">Recipient</h3>
                                 <div className="space-y-2 flex flex-col">
                                     <label className="text-sm font-medium">Contact</label>
-                                    <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" role="combobox" aria-expanded={contactSearchOpen} className="w-full justify-between overflow-hidden">
-                                                <span className="truncate">{contactId ? selectedContactLabel : "Search contact..."}</span>
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[300px] p-0" align="start">
-                                            <Command>
-                                                <CommandInput placeholder="Search by name or email..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No contact found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {isLoadingContacts ? (
-                                                            <div className="p-4 text-sm text-center text-muted-foreground">Loading contacts...</div>
-                                                        ) : (
-                                                            allContacts.map((c: any) => (
-                                                                <CommandItem key={c.id} onSelect={() => {
+                                    <div className="relative">
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            onClick={() => setContactSearchOpen(v => !v)}
+                                            className="w-full justify-between overflow-hidden"
+                                        >
+                                            <span className="truncate">{contactId ? selectedContactLabel : "Search contact..."}</span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                        {contactSearchOpen && (
+                                            <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md">
+                                                <div className="p-2 border-b">
+                                                    <input
+                                                        autoFocus
+                                                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground px-1 py-0.5"
+                                                        placeholder="Search by name or email..."
+                                                        value={contactSearch}
+                                                        onChange={e => setContactSearch(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div
+                                                    className="overflow-y-scroll"
+                                                    style={{ maxHeight: "240px" }}
+                                                    onWheel={e => e.stopPropagation()}
+                                                >
+                                                    {isLoadingContacts ? (
+                                                        <div className="p-4 text-sm text-center text-muted-foreground">Loading...</div>
+                                                    ) : allContacts.length === 0 ? (
+                                                        <div className="p-4 text-sm text-center text-muted-foreground">No contacts found.</div>
+                                                    ) : (
+                                                        allContacts.map((c: any) => (
+                                                            <div
+                                                                key={c.id}
+                                                                className={cn(
+                                                                    "flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent",
+                                                                    contactId === c.id && "bg-accent"
+                                                                )}
+                                                                onClick={() => {
                                                                     setContactId(c.id)
                                                                     setSelectedContactLabel(c.name || c.email || "Unknown")
+                                                                    setSelectedContact({ id: c.id, name: c.name, email: c.email, phone: c.phone })
                                                                     setContactSearchOpen(false)
-                                                                }}>
-                                                                    <Check className={cn("mr-2 h-4 w-4", contactId === c.id ? "opacity-100" : "opacity-0")} />
-                                                                    <div className="flex flex-col">
-                                                                        <span className="font-bold">{c.name || "Unnamed"}</span>
-                                                                        <span className="text-xs text-muted-foreground">{c.email}</span>
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))
-                                                        )}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
+                                                                    setContactSearch("")
+                                                                }}
+                                                            >
+                                                                <Check className={cn("h-4 w-4 shrink-0", contactId === c.id ? "opacity-100" : "opacity-0")} />
+                                                                <div className="flex flex-col overflow-hidden">
+                                                                    <span className="font-medium text-sm truncate">{c.name || "Unnamed"}</span>
+                                                                    <span className="text-xs text-muted-foreground truncate">{c.email}</span>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                    {hasNextPage && (
+                                                        <div className="p-2 text-center border-t">
+                                                            <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => fetchNextPage()}>
+                                                                Load more
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Close dropdown when clicking outside */}
+                                    {contactSearchOpen && (
+                                        <div className="fixed inset-0 z-40" onClick={() => { setContactSearchOpen(false); setContactSearch("") }} />
+                                    )}
                                 </div>
                                 {/* Single Contact Preview Card */}
-                                {contactId && (
+                                {contactId && selectedContact && (
                                     <div className="flex items-center gap-4 mt-4 p-4 border rounded-lg bg-muted/20">
                                         <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
                                             {(selectedContactLabel.charAt(0) || "?").toUpperCase()}
@@ -459,7 +499,7 @@ export function SendMessageDialog({
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="font-bold truncate">{selectedContactLabel}</span>
                                             <span className="text-xs text-muted-foreground truncate">
-                                                {allContacts.find((c: any) => c.id === contactId)?.email || "—"} • {allContacts.find((c: any) => c.id === contactId)?.phone || "—"}
+                                                {selectedContact.email || "—"} • {selectedContact.phone || "—"}
                                             </span>
                                         </div>
                                     </div>

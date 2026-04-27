@@ -95,17 +95,25 @@ export async function getMessages(params?: GetMessagesParams): Promise<{ data: M
     const qs = query.toString();
 
     const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
+    // Use raw fetch with credentials:include so the httpOnly accessToken cookie
+    // is sent automatically. Cannot use apiClient here because apiClient's unwrap
+    // extracts json.data, which would drop the pagination field from this response.
     const res = await fetch(`${BASE_URL}/messages${qs ? `?${qs}` : ""}`, {
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
     });
 
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(body.message ?? "Failed to fetch messages");
+    }
+
     const json = await res.json();
-    return { data: json.data ?? [], pagination: json.pagination ?? { limit: 15, offset: 0, count: 0 } };
+    return {
+        data: json.data ?? [],
+        pagination: json.pagination ?? { limit: 15, offset: 0, count: 0 },
+    };
 }
 
 export interface RetryFailedResponse {
