@@ -217,14 +217,13 @@ export class MessageService {
         if (limit !== undefined) options.limit = limit;
         if (offset !== undefined) options.offset = offset;
 
-        return this.messageRepo.getMessages( {
+        return this.messageRepo.getMessages({
             organizationId,
             ...(contactId && { contactId }),
             ...(eventId && { eventId }),
             ...(email && { email }),
             ...(phone && { phone }),
-            ...(limit && { limit }),
-            ...(offset && { offset }),
+            options,
         });
     }
 
