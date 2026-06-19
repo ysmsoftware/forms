@@ -13,7 +13,8 @@ export type MessageTemplate =
     | "WORKSHOP_OR_INTERNSHIP_COMPLETION_MESSAGE"
     | "INTERNSHIP_REGISTRATION_CONFIRMATION"
     | "REGISTRATION_SUCCESSFUL"
-    | "WORKSHOP_REMINDER_MESSAGE";
+    | "WORKSHOP_REMINDER_MESSAGE"
+    | "PAYMENT_CONFIRMATION_MESSAGE";
 
 export interface MessageLog {
     id: string;
@@ -125,4 +126,32 @@ export async function retryFailedMessages(): Promise<RetryFailedResponse> {
     return apiClient<RetryFailedResponse>("/messages/retry-failed", {
         method: "POST",
     });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Send — backend resolves submitters, no contactIds from the client
+// ---------------------------------------------------------------------------
+
+export interface BulkSendByEventInput {
+    type: MessageType;
+    template: string;
+    params?: Record<string, string>;
+}
+
+export interface BulkSendByEventResult {
+    queued: number;
+    skipped: number;
+}
+
+export async function bulkSendByEvent(
+    eventId: string,
+    input: BulkSendByEventInput
+): Promise<BulkSendByEventResult> {
+    return apiClient<BulkSendByEventResult>(
+        `/messages/admin/events/${eventId}/bulk-send`,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        }
+    );
 }

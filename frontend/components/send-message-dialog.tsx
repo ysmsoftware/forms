@@ -31,6 +31,10 @@ export interface SendMessageDialogProps {
     trigger?: React.ReactNode
     /** Called after a successful send (single or bulk completion) */
     onSuccess?: () => void
+    /** Controlled open state — when provided the parent controls visibility */
+    open?: boolean
+    /** Controlled open change handler */
+    onOpenChange?: (open: boolean) => void
 }
 
 const TEMPLATES: { value: MessageTemplate; label: string }[] = [
@@ -44,6 +48,7 @@ const TEMPLATES: { value: MessageTemplate; label: string }[] = [
     { value: "INTERNSHIP_REGISTRATION_CONFIRMATION", label: "Internship Registration Confirmation" },
     { value: "REGISTRATION_SUCCESSFUL", label: "Registration Successful" },
     { value: "WORKSHOP_REMINDER_MESSAGE", label: "Workshop Reminder Message" },
+    { value: "PAYMENT_CONFIRMATION_MESSAGE", label: "Payment Confirmation Message" },
 ]
 
 const TEMPLATE_DESCRIPTIONS: Record<MessageTemplate, string> = {
@@ -57,6 +62,7 @@ const TEMPLATE_DESCRIPTIONS: Record<MessageTemplate, string> = {
     INTERNSHIP_REGISTRATION_CONFIRMATION: "Confirm internship registration details",
     REGISTRATION_SUCCESSFUL: "Confirm event registration with date & link",
     WORKSHOP_REMINDER_MESSAGE: "Reminder with event date, time & link",
+    PAYMENT_CONFIRMATION_MESSAGE: "Confirm payment received for event",
 }
 
 const toTitleCase = (s: string) =>
@@ -68,7 +74,9 @@ export function SendMessageDialog({
     defaultMode,
     preSelectedContactIds,
     trigger,
-    onSuccess
+    onSuccess,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
 }: SendMessageDialogProps) {
 
     const [open, setOpen] = useState(false)
@@ -211,26 +219,32 @@ export function SendMessageDialog({
         }
     }
 
-    return (
-        <Dialog open={open} onOpenChange={(val) => {
-            setOpen(val)
-            if (!val) {
-                setContactId("")
-                setSelectedContact(null)
-                if (!defaultEventId) {
-                    setEventId("")
-                    setSelectedEventLabel("")
-                }
-                setSelectedContactLabel("")
-                setSelectedContacts(preSelectedContactIds ?? [])
-                setBulkSearch("")
-                setContactSearch("")
-                if (!defaultMode) setMode("single")
-                setBulkProgress(null)
-                setParamOverrides({})
-                sendMessage.reset()
+    // Derived open state: prefer controlled prop, fall back to internal state
+    const isOpen = controlledOpen !== undefined ? controlledOpen : open
+
+    const handleOpenChange = (val: boolean) => {
+        if (controlledOnOpenChange) controlledOnOpenChange(val)
+        setOpen(val)
+        if (!val) {
+            setContactId("")
+            setSelectedContact(null)
+            if (!defaultEventId) {
+                setEventId("")
+                setSelectedEventLabel("")
             }
-        }}>
+            setSelectedContactLabel("")
+            setSelectedContacts(preSelectedContactIds ?? [])
+            setBulkSearch("")
+            setContactSearch("")
+            if (!defaultMode) setMode("single")
+            setBulkProgress(null)
+            setParamOverrides({})
+            sendMessage.reset()
+        }
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 {trigger ?? (
                     <Button><Send className="h-4 w-4 mr-2" />Send Message</Button>
@@ -304,13 +318,29 @@ export function SendMessageDialog({
                                 {resolvedData && !isResolvingParams && (
                                     <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                                         {Object.entries(resolvedData.resolved).map(([key, value]) => (
-                                            <div key={key} className="flex items-start gap-2 text-xs">
-                                                <span className="text-muted-foreground capitalize min-w-[80px] shrink-0 pt-0.5">
-                                                    {key}
-                                                </span>
-                                                <span className="text-foreground font-medium break-all">
-                                                    {value || <span className="text-muted-foreground italic">empty</span>}
-                                                </span>
+                                            <div key={key} className="space-y-1">
+                                                <div className="flex items-start gap-2 text-xs">
+                                                    <span className="text-muted-foreground capitalize min-w-[80px] shrink-0 pt-0.5">
+                                                        {key}
+                                                    </span>
+                                                    <span className="text-foreground font-medium break-all">
+                                                        {paramOverrides[key] !== undefined && paramOverrides[key] !== ""
+                                                            ? <span className="text-primary">{paramOverrides[key]}</span>
+                                                            : (value || <span className="text-muted-foreground italic">empty</span>)
+                                                        }
+                                                    </span>
+                                                </div>
+                                                <Input
+                                                    className="h-6 text-xs"
+                                                    placeholder={`Override ${key}... (optional)`}
+                                                    value={paramOverrides[key] ?? ""}
+                                                    onChange={(e) =>
+                                                        setParamOverrides(prev => ({
+                                                            ...prev,
+                                                            [key]: e.target.value,
+                                                        }))
+                                                    }
+                                                />
                                             </div>
                                         ))}
                                         {resolvedData.missing.length > 0 && (

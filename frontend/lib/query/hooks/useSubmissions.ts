@@ -18,6 +18,26 @@ export function useSubmissionsByEvent(
     })
 }
 
+/**
+ * Fetches ALL submissions for an event (large limit) so we can extract
+ * the complete set of submitter contact IDs — independent of the paginated table.
+ */
+export function useAllSubmitterContactIds(eventId: string) {
+    return useQuery({
+        queryKey: [...queryKeys.submissions.byEvent(eventId), "all-contact-ids"],
+        queryFn: async () => {
+            const result = await getSubmissionsByEvent(eventId, { limit: 10000, offset: 0, status: "ALL" })
+            const contactIds = result.items
+                .filter(s => !!s.contact?.id)
+                .map(s => s.contact!.id)
+                .filter((cid, idx, arr) => arr.indexOf(cid) === idx) // deduplicate
+            return contactIds
+        },
+        enabled: !!eventId,
+        staleTime: 60_000,
+    })
+}
+
 export function useSubmission(id: string) {
     return useQuery({
         queryKey: queryKeys.submissions.detail(id),

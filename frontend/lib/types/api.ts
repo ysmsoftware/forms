@@ -357,3 +357,16 @@ export interface EventAnalyticsDetail {
     conversionRate: number;
     lastUpdated: string | null;
 }
+
+export interface ExportLog {
+    id: string;
+    organizationId: string;
+    eventId: string;
+    eventTitle: string;
+    exportedByUserId: string;
+    exportedByName: string;
+    exportedAt: string;
+    rowCount: number;
+    fileName: string;
+}
+

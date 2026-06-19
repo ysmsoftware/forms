@@ -35,6 +35,9 @@ import { ContactService } from "./services/contact.service";
 import { TagService } from "./services/tag.service";
 import { ContactController } from "./controllers/contact.controller";
 import { TagController } from "./controllers/tag.controller";
+import { ExportLogRepository } from "./repositories/export-log.repo";
+import { ExportService } from "./services/export.service";
+import { ExportController } from "./controllers/export.controller";
 
 
 // Repositories
@@ -49,6 +52,7 @@ const paymentRepo = new PaymentRepository();
 const submissionRepo = new SubmissionsRepository();
 const tagRepo = new TagRepository();
 const userRepo = new UserRepository();
+const exportLogRepo = new ExportLogRepository();
 
 // Providers
 const Razorpay = new RazorpayProvider()
@@ -66,6 +70,7 @@ const messageService = new MessageService(messageRepo, contactRepo, eventRepo);
 const paymentService = new PaymentService(paymentRepo, eventRepo, submissionRepo, Razorpay, messageService);
 const submissionsService = new SubmissionService(submissionRepo, formRepo, eventRepo, contactRepo, fileRepo);
 const tagService = new TagService(tagRepo, contactRepo);
+const exportService = new ExportService(eventRepo, exportLogRepo, userRepo);
 
 
 // Controllers
@@ -80,3 +85,4 @@ export const messageController = new MessageController(messageService);
 export const paymentController = new PaymentController(paymentService);
 export const submissionController = new SubmissionController(submissionsService);
 export const tagController = new TagController(tagService);
+export const exportController = new ExportController(exportService);

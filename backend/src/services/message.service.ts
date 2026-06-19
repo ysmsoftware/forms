@@ -1,4 +1,5 @@
 import { MessageStatus, MessageType } from "@prisma/client";
+import { prisma } from "../config/db";
 import { IMessageRepository } from "../repositories/message.repo";
 import { IContactRepository } from "../repositories/contact.repo";
 import { IEventRepository } from "../repositories/event.repo";
@@ -250,5 +251,109 @@ export class MessageService {
         );
 
         return failedMsg;
+    }
+
+    /**
+     * Bulk-send a message to every submitted contact for a given event.
+     *
+     * The backend owns the full query — no contactIds are passed from the
+     * frontend. This sidesteps the paginated submissions endpoint (which caps
+     * at 100) and avoids any client-side data transfer for contact IDs.
+     *
+     * Flow:
+     *  1. Verify the event belongs to the org.
+     *  2. Query all SUBMITTED FormSubmissions for the event, with contactId set.
+     *  3. De-duplicate contacts (one submission per contact).
+     *  4. For each contact: resolve template params, create a MessageLog, enqueue.
+     *  5. Return { queued, skipped } immediately — queue workers handle delivery.
+     */
+    async bulkSendByEvent(input: {
+        organizationId: string;
+        eventId: string;
+        type: MessageType;
+        template: string;
+        params?: Record<string, string>; // caller-supplied overrides (e.g. link)
+    }): Promise<{ queued: number; skipped: number }> {
+
+        const template = MessageTemplate[input.template as keyof typeof MessageTemplate];
+        if (!template) throw new BadRequestError("Invalid template");
+
+        // 1. Verify event exists and belongs to the org
+        const event = await this.eventRepo.findById(input.eventId);
+        if (!event) throw new NotFoundError("Event not found");
+
+        // 2. Fetch ALL submitted contacts for this event directly from Prisma —
+        //    no limit so we get every record regardless of how many there are.
+        const submissions = await prisma.formSubmission.findMany({
+            where: {
+                eventId: input.eventId,
+                status: "SUBMITTED",
+                isDeleted: false,
+                contactId: { not: null },
+            },
+            select: { contactId: true },
+            distinct: ["contactId"],   // one entry per unique contact
+        });
+
+        const contactIds = submissions
+            .map(s => s.contactId)
+            .filter((id): id is string => id !== null);
+
+        if (contactIds.length === 0) {
+            return { queued: 0, skipped: 0 };
+        }
+
+        // 3. Queue messages in parallel; individual failures are skipped (not thrown)
+        let queued = 0;
+        let skipped = 0;
+
+        await Promise.allSettled(
+            contactIds.map(async (contactId) => {
+                try {
+                    const { resolved: resolvedParams, resolvedEventId } =
+                        await this.resolveTemplateParams(
+                            template,
+                            contactId,
+                            input.organizationId,
+                            input.eventId,
+                        );
+
+                    const mergedParams = { ...resolvedParams, ...(input.params ?? {}) };
+
+                    // Validate all required fields after merge
+                    const requiredFields = TEMPLATE_REQUIRED_FIELDS[template] ?? [];
+                    const missing = requiredFields.filter(f => {
+                        const v = mergedParams[f];
+                        return v === undefined || v === null || v === "";
+                    });
+
+                    if (missing.length > 0) {
+                        skipped++;
+                        return; // skip this contact silently
+                    }
+
+                    const log = await this.messageRepo.create({
+                        organizationId: input.organizationId,
+                        contactId,
+                        ...(resolvedEventId && { eventId: resolvedEventId }),
+                        type: input.type,
+                        template: input.template,
+                        params: mergedParams,
+                    });
+
+                    await messageQueue.add(
+                        "bulk-send-message",
+                        { messageLogId: log.id },
+                        { jobId: log.id }
+                    );
+
+                    queued++;
+                } catch {
+                    skipped++;
+                }
+            })
+        );
+
+        return { queued, skipped };
     }
 }

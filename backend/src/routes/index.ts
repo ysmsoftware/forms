@@ -10,6 +10,7 @@ import certificateRouter from  './certificate.routes';
 import messageRouter from './message.routes';
 import contactRouter from './contact.routes';
 import tagRouter from './tag.routes';
+import exportRouter from './export.routes';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/certificates", certificateRouter);
 router.use("/messages", messageRouter);
 router.use("/contacts", contactRouter);
 router.use("/tags", tagRouter );
+router.use("/exports", exportRouter);
 
 export default router;

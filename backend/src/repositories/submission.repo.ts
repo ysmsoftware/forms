@@ -41,6 +41,26 @@ export type SubmissionListItem = FormSubmission & {
     } | null;
 };
 
+/** Lightweight type used only by the CSV export worker. */
+export type SubmissionForExport = {
+    id: string;
+    submittedAt: Date;
+    status: string;
+    contact: Pick<Contact, "name" | "email" | "phone"> | null;
+    payment: { status: string; amount: number } | null;
+    answers: {
+        fieldKey: string;
+        fieldLabel: string;
+        fieldType: string;
+        valueText: string | null;
+        valueNumber: number | null;
+        valueBoolean: boolean | null;
+        valueDate: Date | null;
+        valueJson: any | null;
+        fileUrl: string | null;
+    }[];
+};
+
 
 export interface ISubmissionRepository {
 
@@ -94,6 +114,11 @@ export interface ISubmissionRepository {
             toDate?: Date;
         }
     ): Promise<{ items: SubmissionListItem[], totalCount: number }>;
+
+    findSubmissionsWithAnswersByEvent(
+        eventId: string,
+        options?: { status?: SubmissionStatus; limit?: number; offset?: number }
+    ): Promise<SubmissionForExport[]>;
 
     attachFilesToContact(params: {
         fileIds: string[];
@@ -324,6 +349,75 @@ export class SubmissionsRepository implements ISubmissionRepository {
         ]);
 
         return { items: items as SubmissionListItem[], totalCount };
+    }
+
+    async findSubmissionsWithAnswersByEvent(
+        eventId: string,
+        options?: { status?: SubmissionStatus; limit?: number; offset?: number }
+    ): Promise<SubmissionForExport[]> {
+        const where = {
+            eventId,
+            isDeleted: false,
+            ...(options?.status && { status: options.status }),
+        };
+
+        const rows = await prisma.formSubmission.findMany({
+            where,
+            orderBy: { submittedAt: "asc" },
+            ...(options?.limit && { take: options.limit }),
+            ...(options?.offset && { skip: options.offset }),
+            select: {
+                id: true,
+                submittedAt: true,
+                status: true,
+                contact: {
+                    select: { name: true, email: true, phone: true },
+                },
+                payment: {
+                    select: { status: true, amount: true },
+                },
+                answers: {
+                    orderBy: [
+                        { field: { step: { stepNumber: "asc" as const } } },
+                        { field: { order: "asc" as const } },
+                    ],
+                    select: {
+                        fieldKey: true,
+                        valueText: true,
+                        valueNumber: true,
+                        valueBoolean: true,
+                        valueDate: true,
+                        valueJson: true,
+                        fileUrl: true,
+                        field: {
+                            select: {
+                                label: true,
+                                type: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return rows.map((row) => ({
+            id: row.id,
+            submittedAt: row.submittedAt,
+            status: row.status,
+            contact: row.contact,
+            payment: row.payment,
+            answers: row.answers.map((a) => ({
+                fieldKey: a.fieldKey,
+                fieldLabel: a.field?.label ?? a.fieldKey,
+                fieldType: a.field?.type ?? "TEXT",
+                valueText: a.valueText,
+                valueNumber: a.valueNumber,
+                valueBoolean: a.valueBoolean,
+                valueDate: a.valueDate,
+                valueJson: a.valueJson,
+                fileUrl: a.fileUrl,
+            })),
+        })) as SubmissionForExport[];
     }
 
     async attachFilesToContact(params: {

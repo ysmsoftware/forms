@@ -115,6 +115,7 @@ model Organization {
     messageLogs     MessageLog[]
     eventAnalytics  EventAnalytics[]
     dailyAnalytics  EventAnalyticsDaily[]
+    exportLogs      ExportLog[]
 }
 
 model OrganizationMember {
@@ -184,6 +185,9 @@ model Event {
   analytics       EventAnalytics?
   dailyAnalytics  EventAnalyticsDaily[]
   fileAssets      FileAsset[]
+  partialSubmissions PartialSubmission[]
+  fieldDropoffStats     FieldDropoffStat[]
+  exportLogs      ExportLog[]
 
   @@index([organizationId])
   @@index([userId])
@@ -216,6 +220,7 @@ model Form {
   steps             FormStep[]
   fields            FormField[]
   formSubmissions   FormSubmission[]
+  partialSubmissions PartialSubmission[]
 
 
 }
@@ -268,6 +273,7 @@ model Visitor {
 
   visitSessions     VisitSession[]
   formSubmissions   FormSubmission[]
+  partialSubmissions PartialSubmission[]
 
   @@index([uuid])
 
@@ -310,6 +316,7 @@ model Contact {
   messageLogs       MessageLog[]
   tags              ContactTag[]
   fileAssets        FileAsset[]
+  partialSubmissions PartialSubmission[]
 
   @@unique([organizationId, email])
   @@unique([organizationId, phone])
@@ -598,4 +605,83 @@ model AuditLog {
   @@index([organizationId, entityType, entityId])
   @@index([organizationId, actorId])
   @@index([organizationId, createdAt])
+}
+
+
+model PartialSubmission {
+    id                  String      @id @default(ulid())
+    formId              String
+    eventId             String
+    visitorId           String
+    contactId           String?
+    lastFieldKey        String?
+    lastFieldOrder      Int?
+    dropoffFieldKey     String?
+    dropoffFieldOrder   Int?
+    partialAnswers      Json
+    contactSnapshot     Json?
+    isContactExtracted  Boolean     @default(false)
+    processedAt        DateTime    @default(now())
+
+    form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+    event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    visitor Visitor @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+    contact Contact?    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+
+    @@unique([visitorId, eventId])
+    @@index([eventId])
+    @@index([eventId, processedAt])
+    @@index([contactId])
+    @@index([dropoffFieldKey])
+}
+
+model FieldDropoffStat {
+    id          String      @id @default(ulid())
+    eventId     String
+    formId      String
+    fieldKey    String
+    fieldLabel  String
+    fieldOrder  Int
+    dropoffCount Int        @default(0)
+    date        DateTime
+
+    event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+    @@unique([eventId, fieldKey, date])
+    @@index([eventId])
+    @@index([eventId, date])
+
+}
+
+// EXPORT AUDIT LOG
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model ExportLog {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  eventId            String
+  eventTitle         String
+  exportedByUserId   String
+  exportedByName     String
+  exportedAt         DateTime     @default(now())
+  rowCount           Int          @default(0)
+  fileName           String       @default("")
+  // Queue-based async export fields
+  status             ExportStatus @default(PENDING)
+  jobId              String?      @unique   // BullMQ job id
+  errorMessage       String?      @db.Text
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([exportedAt])
+  @@index([status])
 }

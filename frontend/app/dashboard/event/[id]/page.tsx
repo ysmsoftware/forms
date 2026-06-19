@@ -23,13 +23,16 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { SendMessageDialog } from "@/components/send-message-dialog"
-import { MessageSquare } from "lucide-react"
+
 import { useEvent } from "@/lib/query/hooks/useEvents"
 import { useEventAnalytics } from "@/lib/query/hooks/useAnalytics"
 import { useSubmissionsByEvent } from "@/lib/query/hooks/useSubmissions"
+import { EventBulkMessageButton } from "@/components/event-bulk-message-button"
+import { useExportSubmissions, useExportLogs } from "@/lib/query/hooks/useExport"
 import { format } from "date-fns"
 import { SubmissionTable } from "@/components/submission-table"
+import { ExportButton } from "@/components/export-button"
+import { ExportLogTable } from "@/components/export-log-table"
 
 const statusColor: Record<string, string> = {
     DRAFT: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -55,19 +58,15 @@ export default function EventDetailPage() {
 
     })
 
+    // Export
+    const { mutate: triggerExport, isPending: isExporting } = useExportSubmissions(id)
+    const { data: exportLogs = [], isLoading: isLoadingExportLogs } = useExportLogs(id)
+
     const totalCount = submissionsResult?.total ?? 0;
 
     const submissions = useMemo(
         () => submissionsResult?.items ?? [],
         [submissionsResult]
-    )
-
-    const submitterContactIds = useMemo(
-        () => submissions
-            .filter(s => !!s.contact?.id)   // API returns nested contact object, never a flat contactId field
-            .map(s => s.contact!.id)
-            .filter((cid, idx, arr) => arr.indexOf(cid) === idx), // deduplicate
-        [submissions]
     )
 
     // Only show full page skeleton if we don't have event metadata yet
@@ -83,6 +82,17 @@ export default function EventDetailPage() {
         const url = `${window.location.origin}/form/${event.slug}`
         navigator.clipboard.writeText(url)
         toast("Form URL copied to clipboard.")
+    }
+
+    const handleExport = () => {
+        triggerExport(undefined, {
+            onSuccess: ({ fileName }) => {
+                toast.success(`Exported successfully — ${fileName}`)
+            },
+            onError: (err: Error) => {
+                toast.error(err.message ?? "Export failed. Please try again.")
+            },
+        })
     }
 
     /* ────────────────────── Loading state ────────────────────── */
@@ -157,23 +167,11 @@ export default function EventDetailPage() {
                         <Copy className="mr-2 h-4 w-4" />
                         Copy Form URL
                     </Button>
-                    <SendMessageDialog
-                        defaultEventId={id}
-                        defaultEventLabel={event?.title}
-                        defaultMode="bulk"
-                        preSelectedContactIds={submitterContactIds}
-                        onSuccess={() => toast("Messages queued for all submitters")}
-                        trigger={
-                            <Button variant="outline" disabled={submitterContactIds.length === 0}>
-                                <MessageSquare className="mr-2 h-4 w-4" />
-                                Message Submitters
-                                {submitterContactIds.length > 0 && (
-                                    <Badge variant="secondary" className="ml-2 text-xs">
-                                        {submitterContactIds.length}
-                                    </Badge>
-                                )}
-                            </Button>
-                        }
+                    <EventBulkMessageButton eventId={id} eventTitle={event?.title} />
+                    <ExportButton
+                        eventName={event?.title ?? "this event"}
+                        onConfirm={handleExport}
+                        isExporting={isExporting}
                     />
                     <Button variant="outline" asChild>
                         <Link href={`/dashboard/event/${id}/edit`}>
@@ -315,6 +313,13 @@ export default function EventDetailPage() {
                 onPageChange={setSubmissionPage}
                 isLoading={isFetchingSubmissions}
             />
+
+            {/* ─── SECTION E — Export History ──────── */}
+            <ExportLogTable
+                logs={exportLogs}
+                isLoading={isLoadingExportLogs}
+            />
+
         </div>
     )
 }

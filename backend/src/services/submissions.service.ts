@@ -12,6 +12,7 @@ import { VisitorInput } from "../validators/visitor.schema";
 import { validateSubmissionAgainstForm } from "../validators/formSubmission.validator";
 import { IContactRepository } from "../repositories/contact.repo";
 import { IFileRepository } from "../repositories/file.repo";
+import { asyncWrapProviders } from "node:async_hooks";
 
 export class SubmissionService {
     constructor(
@@ -419,9 +420,34 @@ export class SubmissionService {
 
         const visitor = await this.submissionRepo.upsertVisitor({ uuid: visitorUuid });
 
-        const key = `draft:form:${form.id}:visitor:${visitor.id}`;
+        const draftkey = `draft:form:${form.id}:visitor:${visitor.id}`;
+
+        // draft with metadata
+        const enrichedDraft = {
+            ...draft,
+            _meta: {
+                eventId: event.id,
+                formId: form.id,
+                visitorId: visitor.id,
+                savedAt: new Date().toISOString(),
+            },
+        }
         try {
-            await redis.set(key, JSON.stringify(draft), "EX", 60 * 60 * 24); // 24hr
+            await redis.set(draftkey, JSON.stringify(enrichedDraft), "EX", 60 * 60 * 24); // 24hr
+
+            // 
+            await redis.zadd(
+                `dropoff:active:event:${event.id}`,
+                Date.now(),
+                visitor.id
+            );
+            
+            //  
+            await redis.expire(`dropoff:active:event:${event.id}`, 60 * 60 * 24);
+
+            // Track this event as having potential drop-offs
+            await redis.sadd("dropoff:activeEvents", event.id);
+
         } catch (err) {
             logger.warn("Redis save draft failed", err);
         }

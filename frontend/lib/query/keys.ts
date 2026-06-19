@@ -65,5 +65,9 @@ export const queryKeys = {
         byEvent: (eventId: string, page?: number, limit?: number) => ["certificates", "event", eventId, page ?? 1, limit ?? 20] as const,
         verify: (certificateId: string) => ["certificates", "verify", certificateId] as const,
     },
+    // Exports
+    exports: {
+        logs: (eventId: string) => ["exports", "logs", eventId] as const,
+    },
 
 } as const
