@@ -14,6 +14,7 @@ router.put("/:id", authenticatedOrgMiddleware, validate(updateEventSchema), even
 router.get("/:id", authenticatedOrgMiddleware, eventController.findById);
 router.put('/:id/publish', authenticatedOrgMiddleware, eventController.publishEvent);
 router.patch('/:id/close', authenticatedOrgMiddleware, eventController.closeEvent);
+router.post('/:id/duplicate', authenticatedOrgMiddleware, eventController.duplicateEvent);
 router.delete('/:id', authenticatedOrgMiddleware, eventController.deleteEvent);
 
 export default router; 

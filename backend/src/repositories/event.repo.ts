@@ -28,6 +28,7 @@ export interface IEventRepository {
     markAsDeleted(id: string): Promise<EventWithConfig>;
     findActiveEvents(): Promise<EventWithConfig[]>;
     getEventPaymentConfig(eventId: string): Promise<PaymentConfig | null>;
+    duplicateEvent(id: string, newTitle: string, newSlug: string): Promise<EventWithConfig>;
 
 }
 
@@ -158,6 +159,114 @@ export class EventRepository implements IEventRepository {
     async getEventPaymentConfig(eventId: string): Promise<PaymentConfig | null> {
         return prisma.paymentConfig.findUnique({
             where: { eventId }
+        });
+    }
+
+    async duplicateEvent(id: string, newTitle: string, newSlug: string): Promise<EventWithConfig> {
+        return prisma.$transaction(async (tx) => {
+            // Fetch source event with form, steps, and fields
+            const source = await tx.event.findUnique({
+                where: { id, isDeleted: false },
+                include: {
+                    paymentConfig: true,
+                    form: {
+                        include: {
+                            steps: {
+                                include: { fields: { orderBy: { order: 'asc' } } },
+                                orderBy: { stepNumber: 'asc' },
+                            },
+                            fields: {
+                                where: { stepId: null },
+                                orderBy: { order: 'asc' },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (!source) throw new Error('Source event not found');
+
+            // Create the new event (status = DRAFT)
+            const newEvent = await tx.event.create({
+                data: {
+                    userId: source.userId,
+                    organizationId: source.organizationId,
+                    title: newTitle,
+                    slug: newSlug,
+                    description: source.description,
+                    status: 'DRAFT',
+                    templateType: source.templateType,
+                    date: source.date,
+                    link: `${process.env.DOMAIN}/form/${newSlug}`,
+                    bannerUrl: source.bannerUrl,
+                    paymentEnabled: source.paymentEnabled,
+                    ...(source.paymentConfig && {
+                        paymentConfig: {
+                            create: {
+                                amount: source.paymentConfig.amount,
+                                currency: source.paymentConfig.currency,
+                                description: source.paymentConfig.description,
+                            },
+                        },
+                    }),
+                },
+                include: { paymentConfig: true },
+            });
+
+            // Deep-copy the form if it exists
+            if (source.form) {
+                const form = await tx.form.create({
+                    data: {
+                        eventId: newEvent.id,
+                        isMultiStep: source.form.isMultiStep,
+                        settings: source.form.settings ?? {},
+                        // publishedAt intentionally omitted → stays null (draft)
+                    },
+                });
+
+                if (source.form.isMultiStep && source.form.steps.length > 0) {
+                    for (const step of source.form.steps) {
+                        const newStep = await tx.formStep.create({
+                            data: {
+                                formId: form.id,
+                                stepNumber: step.stepNumber,
+                                title: step.title,
+                                description: step.description,
+                            },
+                        });
+                        if (step.fields.length > 0) {
+                            await tx.formField.createMany({
+                                data: step.fields.map((f) => ({
+                                    formId: form.id,
+                                    stepId: newStep.id,
+                                    key: f.key,
+                                    type: f.type,
+                                    label: f.label,
+                                    required: f.required,
+                                    order: f.order,
+                                    options: f.options ?? {},
+                                    validation: f.validation ?? {},
+                                })),
+                            });
+                        }
+                    }
+                } else if (!source.form.isMultiStep && source.form.fields && source.form.fields.length > 0) {
+                    await tx.formField.createMany({
+                        data: source.form.fields.map((f) => ({
+                            formId: form.id,
+                            key: f.key,
+                            type: f.type,
+                            label: f.label,
+                            required: f.required,
+                            order: f.order,
+                            options: f.options ?? {},
+                            validation: f.validation ?? {},
+                        })),
+                    });
+                }
+            }
+
+            return newEvent as EventWithConfig;
         });
     }
 }

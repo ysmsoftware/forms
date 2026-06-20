@@ -118,4 +118,17 @@ export class EventController {
         }
     }
 
+    duplicateEvent = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = req.user!;
+            const { title } = req.body as { title: string };
+            const result = await this.eventService.duplicateEvent(req.params.id as string, organizationId, title);
+
+            res.status(201).json({ success: true, data: result });
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
 }

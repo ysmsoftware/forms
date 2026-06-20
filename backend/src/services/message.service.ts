@@ -252,20 +252,7 @@ export class MessageService {
         return failedMsg;
     }
 
-    /**
-     * Bulk-send a message to every submitted contact for a given event.
-     *
-     * The backend owns the full query — no contactIds are passed from the
-     * frontend. This sidesteps the paginated submissions endpoint (which caps
-     * at 100) and avoids any client-side data transfer for contact IDs.
-     *
-     * Flow:
-     *  1. Verify the event belongs to the org.
-     *  2. Query all SUBMITTED FormSubmissions for the event, with contactId set.
-     *  3. De-duplicate contacts (one submission per contact).
-     *  4. For each contact: resolve template params, create a MessageLog, enqueue.
-     *  5. Return { queued, skipped } immediately — queue workers handle delivery.
-     */
+
     async bulkSendByEvent(input: {
         organizationId: string;
         eventId: string;

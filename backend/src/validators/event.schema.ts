@@ -26,7 +26,7 @@ export const updateEventSchema = z.object({
         date: z.string().optional(),
         link: z.string().optional(),
         templateType: z.enum(["COMPLETION", "ACHIEVEMENT", "WORKSHOP", "INTERNSHIP", "APPOINTMENT"]).optional(),
-        bannerUrl: z.string().optional(),
+        bannerUrl: z.string().nullable().optional(),
         paymentEnabled: z.boolean().optional(),
         paymentConfig: z.object({
             amount: z.number().int().positive(),

@@ -22,7 +22,7 @@ export async function createEvent(data: CreateEventInput): Promise<Event> {
 
 export async function updateEvent(
     id: string,
-    data: Partial<CreateEventInput>
+    data: Partial<CreateEventInput> & { bannerUrl?: string | null }
 ): Promise<Event> {
     return apiClient(`/events/${id}`, {
         method: "PUT",
@@ -43,23 +43,12 @@ export async function deleteEvent(id: string): Promise<void> {
 }
 
 /**
- * Client-side event duplication — copies title, description, date, and link only.
- * Does NOT copy: form fields, form steps, payment config, or any submissions.
- *
- * For a full deep copy including form fields, a backend endpoint
- * POST /events/:id/duplicate should be implemented.
+ * Deep-duplicates an event (including form, steps, fields, and payment config)
+ * on the server side. Both the event and form are created with status DRAFT.
  */
-export async function duplicateEvent(id: string): Promise<Event> {
-    // Fetch the event, then create a copy
-    const original = await apiClient<Event>(`/events/${id}`);
-    return apiClient<Event>("/events", {
+export async function duplicateEvent(id: string, title: string): Promise<Event> {
+    return apiClient<Event>(`/events/${id}/duplicate`, {
         method: "POST",
-        body: JSON.stringify({
-            title: `${original.title} (Copy)`,
-            description: original.description,
-            slug: `${original.slug}-copy-${Date.now()}`,
-            date: original.date,
-            link: original.link,
-        }),
+        body: JSON.stringify({ title }),
     });
 }

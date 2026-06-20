@@ -43,6 +43,9 @@ import {
     Lock,
     XCircle,
     AlertCircle,
+    Image as ImageIcon,
+    X,
+    Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -54,6 +57,7 @@ import type { Event, Form, FormFieldInput } from "@/lib/types/api"
 import { getStatusColor } from "@/lib/event-utils"
 import { useFormBuilder, FIELD_TYPES, type LocalField, type LocalStep } from "@/lib/hooks/useFormBuilder"
 import { PatternBuilder } from "@/components/pattern-builder"
+import { useUploadFileAdmin } from "@/lib/query/hooks/useFiles"
 
 
 const TEMPLATE_TYPES = ["COMPLETION", "ACHIEVEMENT", "WORKSHOP", "INTERNSHIP", "APPOINTMENT"] as const
@@ -70,6 +74,12 @@ export default function EditEventPage() {
     const [isClosing, setIsClosing] = useState(false)
     const [showCloseConfirm, setShowCloseConfirm] = useState(false)
     const editRef = useRef<HTMLDivElement>(null)
+
+    // Banner state
+    const [bannerUrl, setBannerUrl] = useState<string | null>(null)   // current saved URL
+    const [bannerFile, setBannerFile] = useState<File | null>(null)   // new file selected by user
+    const [isUploadingBanner, setIsUploadingBanner] = useState(false)
+    const { mutateAsync: uploadAdmin } = useUploadFileAdmin()
 
     const [event, setEvent] = useState<Event | null>(null)
     const [eventForm, setEventForm] = useState({
@@ -123,6 +133,8 @@ export default function EditEventPage() {
                     paymentCurrency: eventData.paymentConfig?.currency ?? "INR",
                     paymentDescription: eventData.paymentConfig?.description ?? "",
                 })
+                // Initialise banner from existing event data
+                setBannerUrl(eventData.bannerUrl ?? null)
                 if (formData) {
                     setForm(formData)
                     fb.loadFromBackend(formData)
@@ -137,11 +149,42 @@ export default function EditEventPage() {
         if (!eventForm.title.trim()) { toast.error("Event title is required."); return }
         setIsSaving(true)
         try {
+            // ── Banner handling ──────────────────────────────────────────────
+            let resolvedBannerUrl: string | null | undefined = undefined // undefined = no change
+
+            if (bannerFile) {
+                // User selected a new image — upload it
+                setIsUploadingBanner(true)
+                try {
+                    const result = await uploadAdmin({
+                        file: bannerFile,
+                        context: "EVENT_ASSET",
+                        eventId: id,
+                        eventSlug: event?.slug,
+                    })
+                    resolvedBannerUrl = result.url
+                    setBannerUrl(result.url)
+                    setBannerFile(null)
+                } catch (uploadErr: any) {
+                    toast.error("Banner upload failed", { description: uploadErr.message })
+                    return // abort save if upload fails
+                } finally {
+                    setIsUploadingBanner(false)
+                }
+            } else if (bannerUrl === null) {
+                // User explicitly removed the banner
+                resolvedBannerUrl = null
+            }
+
             const payload: any = {
                 title: eventForm.title,
                 description: eventForm.description,
                 templateType: eventForm.templateType,
                 paymentEnabled: eventForm.enablePayment,
+            }
+            // Only include bannerUrl in payload when it was changed
+            if (resolvedBannerUrl !== undefined) {
+                payload.bannerUrl = resolvedBannerUrl
             }
             if (eventForm.enablePayment && eventForm.paymentAmount) {
                 payload.paymentConfig = {
@@ -327,6 +370,110 @@ export default function EditEventPage() {
                             </Select>
                         </div>
 
+                        {/* ── Event Banner ───────────────────────────────────────────── */}
+                        <div className="space-y-2">
+                            <Label>Event Banner</Label>
+
+                            {/* Preview of saved URL (no new file selected yet) */}
+                            {bannerUrl && !bannerFile ? (
+                                <div className="relative rounded-lg border bg-card overflow-hidden">
+                                    <div className="relative w-full h-36 bg-muted">
+                                        <img
+                                            src={bannerUrl}
+                                            alt="Current event banner"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        {/* Edit overlay */}
+                                        <label
+                                            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                                            title="Change banner"
+                                        >
+                                            <input
+                                                type="file"
+                                                className="sr-only"
+                                                accept="image/png, image/jpeg, image/jpg"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (!file) return
+                                                    if (file.size > 5 * 1024 * 1024) {
+                                                        toast.error("File too large", { description: "Max size is 5 MB." })
+                                                        return
+                                                    }
+                                                    setBannerFile(file)
+                                                }}
+                                            />
+                                            <div className="flex flex-col items-center gap-1 text-white">
+                                                <Upload className="h-6 w-6" />
+                                                <span className="text-xs font-medium">Replace banner</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div className="flex items-center justify-between px-3 py-2">
+                                        <p className="text-xs text-muted-foreground truncate">Current banner</p>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                                            onClick={() => {
+                                                setBannerUrl(null)
+                                                setBannerFile(null)
+                                            }}
+                                        >
+                                            <X className="h-3.5 w-3.5 mr-1" />
+                                            Remove
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : bannerFile ? (
+                                /* Preview of newly-selected (not-yet-uploaded) file */
+                                <div className="relative rounded-lg border bg-card p-2 flex items-center space-x-3 overflow-hidden">
+                                    <div className="w-16 h-16 relative rounded overflow-hidden flex-shrink-0 bg-muted">
+                                        <img
+                                            src={URL.createObjectURL(bannerFile)}
+                                            alt="New banner preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{bannerFile.name}</p>
+                                        <p className="text-xs text-muted-foreground">{(bannerFile.size / 1024 / 1024).toFixed(2)} MB — will upload on save</p>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                        onClick={() => setBannerFile(null)}
+                                        title="Cancel new banner"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                /* No banner — upload drop zone */
+                                <div className="relative border-2 border-dashed border-border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center text-center">
+                                    <input
+                                        type="file"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        accept="image/png, image/jpeg, image/jpg"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (!file) return
+                                            if (file.size > 5 * 1024 * 1024) {
+                                                toast.error("File too large", { description: "Max size is 5 MB." })
+                                                return
+                                            }
+                                            setBannerFile(file)
+                                        }}
+                                    />
+                                    <div className="rounded-full bg-primary/10 p-3 mb-3">
+                                        <ImageIcon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
+                                    <p className="text-xs text-muted-foreground">PNG, JPG, JPEG — max 5 MB</p>
+                                </div>
+                            )}
+                        </div>
+
                         <Separator />
 
                         <div className="space-y-4">
@@ -363,9 +510,18 @@ export default function EditEventPage() {
                         </div>
 
                         <div className="flex justify-end">
-                            <Button onClick={handleSaveEvent} disabled={isSaving}>
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSaving ? "Saving..." : "Save Event Details"}
+                            <Button onClick={handleSaveEvent} disabled={isSaving || isUploadingBanner}>
+                                {(isSaving || isUploadingBanner) ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        {isUploadingBanner ? "Uploading banner..." : "Saving..."}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="mr-2 h-4 w-4" />
+                                        Save Event Details
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </CardContent>

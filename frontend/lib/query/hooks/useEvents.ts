@@ -69,7 +69,7 @@ export function useDeleteEvent() {
 export function useDuplicateEvent() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (id: string) => duplicateEvent(id),
+        mutationFn: ({ id, title }: { id: string; title: string }) => duplicateEvent(id, title),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.events.list() }),
     })
 }

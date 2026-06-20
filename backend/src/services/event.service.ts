@@ -48,7 +48,9 @@ export class EventService {
             description: data.description ?? undefined,
             status: data.status ?? undefined,
             link: data.link ?? `${process.env.DOMAIN}/event/${event.slug}`,
-            bannerUrl: data.bannerUrl ?? null,
+            // Only include bannerUrl when explicitly provided — omitting it (undefined) means
+            // "no change". Passing null means "intentionally clear the banner".
+            ...(data.bannerUrl !== undefined && { bannerUrl: data.bannerUrl }),
             paymentEnabled: data.paymentEnabled ?? undefined,
             paymentConfig: data.paymentConfig ? {
                 amount: data.paymentConfig.amount ?? undefined,
@@ -101,8 +103,24 @@ export class EventService {
 
     async deleteEvent(id: string, organizationId: string): Promise<EventResponseDTO> {
         const event = await this.eventRepository.findById(id);
-        if (!event) throw new NotFoundError("No Event found");
+        if (!event) throw new NotFoundError(`No Event found`);
         if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
         return toEventResponseDTO(await this.eventRepository.markAsDeleted(id));
+    }
+
+    async duplicateEvent(id: string, organizationId: string, newTitle: string): Promise<EventResponseDTO> {
+        const event = await this.eventRepository.findById(id);
+        if (!event) throw new NotFoundError(`No Event found`);
+        if (event.organizationId !== organizationId) throw new ForbiddenError("Unauthorized access");
+
+        // Generate a unique slug for the copy
+        let slug = createSlug(newTitle);
+        const isExisting = await this.eventRepository.findBySlug(slug);
+        if (isExisting) {
+            slug = `${slug}-${generateRandomString(4)}`;
+        }
+
+        const duplicated = await this.eventRepository.duplicateEvent(id, newTitle, slug);
+        return toEventResponseDTO(duplicated);
     }
 }

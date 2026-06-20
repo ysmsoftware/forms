@@ -15,6 +15,11 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog, DialogContent, DialogDescription, DialogFooter,
+    DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DateRange } from "react-day-picker"
@@ -37,6 +42,8 @@ export default function EventsPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [datePickerOpen, setDatePickerOpen] = useState(false)
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+    const [duplicateTarget, setDuplicateTarget] = useState<{ id: string; title: string } | null>(null)
+    const [duplicateName, setDuplicateName] = useState("")
 
     const deleteEvent = useDeleteEvent()
     const duplicateEvent = useDuplicateEvent()
@@ -238,14 +245,10 @@ export default function EventsPage() {
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     className="flex items-center gap-2 cursor-pointer"
-                                                    disabled={duplicateEvent.isPending}
-                                                    onClick={async () => {
-                                                        try {
-                                                            await duplicateEvent.mutateAsync(event.id)
-                                                            toast(`"${event.title}" duplicated`)
-                                                        } catch {
-                                                            toast.error("Failed to duplicate event")
-                                                        }
+                                                    onClick={() => {
+                                                        const copyName = `${event.title} (copy)`
+                                                        setDuplicateName(copyName)
+                                                        setDuplicateTarget({ id: event.id, title: copyName })
                                                     }}
                                                 >
                                                     <Copy className="h-4 w-4" />
@@ -388,6 +391,64 @@ export default function EventsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Duplicate event modal */}
+            <Dialog
+                open={!!duplicateTarget}
+                onOpenChange={(v) => { if (!v) setDuplicateTarget(null) }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Duplicate Event</DialogTitle>
+                        <DialogDescription>
+                            A copy of this event will be created as <strong>Draft</strong>. You can rename it below.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Label htmlFor="duplicate-event-name">Event Name</Label>
+                        <Input
+                            id="duplicate-event-name"
+                            value={duplicateName}
+                            onChange={(e) => setDuplicateName(e.target.value)}
+                            placeholder="Enter event name"
+                            onKeyDown={async (e) => {
+                                if (e.key === "Enter" && duplicateName.trim() && duplicateTarget) {
+                                    e.preventDefault()
+                                    try {
+                                        await duplicateEvent.mutateAsync({ id: duplicateTarget.id, title: duplicateName.trim() })
+                                        toast(`"${duplicateName.trim()}" created as Draft`)
+                                    } catch {
+                                        toast.error("Failed to duplicate event")
+                                    } finally {
+                                        setDuplicateTarget(null)
+                                    }
+                                }
+                            }}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDuplicateTarget(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={!duplicateName.trim() || duplicateEvent.isPending}
+                            onClick={async () => {
+                                if (!duplicateTarget || !duplicateName.trim()) return
+                                try {
+                                    await duplicateEvent.mutateAsync({ id: duplicateTarget.id, title: duplicateName.trim() })
+                                    toast(`"${duplicateName.trim()}" created as Draft`)
+                                } catch {
+                                    toast.error("Failed to duplicate event")
+                                } finally {
+                                    setDuplicateTarget(null)
+                                }
+                            }}
+                        >
+                            {duplicateEvent.isPending ? "Duplicating..." : "Create Duplicate"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
